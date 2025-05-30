@@ -37,62 +37,77 @@ export default function UsersPage() {
             console.log('Obteniendo usuarios...');
             setLoading(true);
             
-            // Intentar obtener la sesión actual para verificar el rol
+            // Obtener todos los usuarios directamente de la API de autenticación
+            console.log('Obteniendo usuarios de auth...');
             const { data: sessionData } = await supabase.auth.getSession();
-            console.log('Sesión actual:', sessionData);
             
-            // Intentar obtener usuarios directamente con RPC para evitar problemas de RLS
-            console.log('Llamando a la función RPC get_all_profiles...');
-            const { data, error } = await supabase
-                .rpc('get_all_profiles');
-
-            console.log('Respuesta de get_all_profiles:', { data, error });
-
-            // Si falla el RPC, intentar con la consulta normal
-            if (error) {
-                console.error('Error al llamar a get_all_profiles:', error);
-                console.log('Fallback a consulta directa a profiles');
+            if (!sessionData || !sessionData.session) {
+                console.error('No hay sesión activa');
+                toast.error("Debes iniciar sesión para ver los usuarios");
+                setUsers([]);
+                setPendingCount(0);
+                return;
+            }
+            
+            // Usar la función RPC que sabemos que funciona
+            console.log('Obteniendo usuarios con RPC...');
+            const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_profiles');
+            
+            if (rpcError) {
+                console.error('Error con RPC:', rpcError);
                 
-                const { data: profilesData, error: profilesError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .order('created_at', { ascending: false });
+                // Si falla, obtener usuarios de auth directamente
+                console.log('Fallback: obteniendo usuarios de auth directamente...');
+                const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+                
+                if (authError) {
+                    console.error('Error al obtener usuarios de auth:', authError);
+                    throw authError;
+                }
+                
+                if (authData && authData.users) {
+                    console.log('Usuarios obtenidos de auth:', authData.users.length);
                     
-                console.log('Respuesta directa de profiles:', { profilesData, profilesError });
-                
-                if (profilesError) {
-                    console.error('Error detallado:', JSON.stringify(profilesError));
-                    throw profilesError;
-                }
-                
-                if (profilesData && profilesData.length > 0) {
-                    console.log('Usuarios obtenidos de profiles:', profilesData.length);
-                    setUsers(profilesData);
+                    // Convertir usuarios de auth a formato de usuario y eliminar duplicados por ID
+                    const formattedUsers = authData.users.map(user => ({
+                        id: user.id,
+                        email: user.email || '',
+                        full_name: user.user_metadata?.full_name || '',
+                        role: user.user_metadata?.role || 'reseller',
+                        status: user.user_metadata?.status || 'pending',
+                        created_at: user.created_at || new Date().toISOString()
+                    }));
+                    
+                    // Eliminar duplicados por ID
+                    const uniqueUsers = Array.from(new Map(formattedUsers.map(user => [user.id, user])).values()) as User[];
+                    
+                    console.log('Usuarios únicos formateados:', uniqueUsers.length);
+                    setUsers(uniqueUsers);
+                    
                     // Contar usuarios pendientes
-                    const pendingUsers = profilesData.filter(user => user.status === 'pending') || [];
+                    const pendingUsers = uniqueUsers.filter(user => user.status === 'pending') || [];
                     setPendingCount(pendingUsers.length);
                 } else {
-                    console.warn(
-                        "No se encontraron usuarios en la tabla profiles"
-                    );
+                    console.warn('No se encontraron usuarios en auth');
                     setUsers([]);
                     setPendingCount(0);
                 }
+            } else if (rpcData && rpcData.length > 0) {
+                console.log('Usuarios obtenidos de RPC:', rpcData.length);
+                
+                // Eliminar duplicados por ID
+                const uniqueUsers = Array.from(new Map(rpcData.map(user => [user.id, user])).values()) as User[];
+                console.log('Usuarios únicos de RPC:', uniqueUsers.length);
+                
+                setUsers(uniqueUsers);
+                
+                // Contar usuarios pendientes
+                const pendingUsers = uniqueUsers.filter(user => user.status === 'pending') || [];
+                setPendingCount(pendingUsers.length);
             } else {
-                if (data && data.length > 0) {
-                    console.log("Usuarios obtenidos de RPC:", data.length);
-                    setUsers(data);
-                    // Contar usuarios pendientes
-                    const pendingUsers =
-                        data.filter((user) => user.status === "pending") || [];
-                    setPendingCount(pendingUsers.length);
-                } else {
-                    console.warn(
-                        "No se encontraron usuarios en la función RPC"
-                    );
-                    setUsers([]);
-                    setPendingCount(0);
-                }
+                console.warn('No se encontraron usuarios con RPC');
+                setUsers([]);
+                setPendingCount(0);
             }
         } catch (error) {
             console.error("Error fetching users:", error);

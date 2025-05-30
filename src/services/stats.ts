@@ -265,6 +265,7 @@ export const statsService = {
     // Obtener alertas del sistema
     const now = new Date();
     const alerts: Alert[] = [];
+    const processedUserIds = new Set<string>(); // Para evitar duplicados
 
     // Agregar alertas para usuarios pendientes de activación
     console.log('Datos de revendedores pendientes:', pendingResellersData);
@@ -292,9 +293,13 @@ export const statsService = {
         
         if (!pendingProfilesError && pendingProfiles && pendingProfiles.length > 0) {
           for (const profile of pendingProfiles) {
+            // Evitar duplicados
+            if (processedUserIds.has(profile.id)) continue;
+            processedUserIds.add(profile.id);
+            
             console.log('Agregando alerta para perfil pendiente:', profile);
             alerts.push({
-              id: `pending-profile-${profile.id}`,
+              id: `pending-${profile.id}`,
               type: 'demo',
               title: 'Usuario Pendiente de Activación',
               message: `${profile.full_name} está pendiente de activación.`,
@@ -306,9 +311,13 @@ export const statsService = {
       } else if (pendingUsers && pendingUsers.length > 0) {
         // Usar los datos de la función RPC
         for (const user of pendingUsers) {
+          // Evitar duplicados
+          if (processedUserIds.has(user.id)) continue;
+          processedUserIds.add(user.id);
+          
           console.log('Agregando alerta para usuario pendiente de RPC:', user);
           alerts.push({
-            id: `pending-rpc-${user.id}`,
+            id: `pending-${user.id}`,
             type: 'demo',
             title: 'Usuario Pendiente de Activación',
             message: `${user.full_name || user.email} está pendiente de activación.`,
@@ -317,21 +326,25 @@ export const statsService = {
           });
         }
       }
+      
+      // Usar también los revendedores pendientes que encontramos antes, pero solo si no se han procesado ya
+      for (const reseller of pendingResellersData) {
+        // Evitar duplicados
+        if (processedUserIds.has(reseller.id)) continue;
+        processedUserIds.add(reseller.id);
+        
+        console.log('Agregando alerta para revendedor pendiente:', reseller);
+        alerts.push({
+          id: `pending-${reseller.id}`,
+          type: 'demo',
+          title: 'Usuario Pendiente de Activación',
+          message: `${reseller.full_name} está pendiente de activación.`,
+          severity: 'high',
+          timestamp: new Date().toISOString()
+        });
+      }
     } catch (error) {
       console.error('Error al buscar usuarios pendientes:', error);
-    }
-    
-    // Usar también los revendedores pendientes que encontramos antes
-    for (const reseller of pendingResellersData) {
-      console.log('Agregando alerta para revendedor pendiente:', reseller);
-      alerts.push({
-        id: `pending-${reseller.id}`,
-        type: 'demo',
-        title: 'Usuario Pendiente de Activación',
-        message: `${reseller.full_name} está pendiente de activación.`,
-        severity: 'high',
-        timestamp: new Date().toISOString()
-      });
     }
     
     console.log('Alertas generadas:', alerts);

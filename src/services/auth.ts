@@ -41,6 +41,7 @@ export const authService = {
                         role: initialRole,
                         status: initialStatus,
                         full_name: fullName,
+                        phone: phone || '',
                     },
                 },
             });
@@ -58,114 +59,75 @@ export const authService = {
 
             console.log("Usuario creado en auth:", { id: authData.user.id, email: authData.user.email });
 
-            // 2. Crear el perfil usando supabaseAdmin para ignorar RLS
+            // 2. Usar la función RPC create_user_profile para crear el perfil
+            // Esta función ignora las políticas RLS y funciona correctamente
             try {
-                console.log("Creando perfil con supabaseAdmin...");
-                const profileData = {
-                    id: authData.user.id,
-                    email,
-                    role: initialRole,
-                    status: initialStatus,
-                    full_name: fullName,
-                    created_at: new Date().toISOString()
-                };
+                console.log("Usando RPC create_user_profile para crear el perfil...");
+                const { data: profileResult, error: profileError } = await supabase.rpc('create_user_profile', {
+                    user_id: authData.user.id,
+                    user_email: email,
+                    user_role: initialRole,
+                    user_status: initialStatus,
+                    user_full_name: fullName
+                });
                 
-                // Usar supabaseAdmin para ignorar RLS
-                const { error: adminError } = await supabaseAdmin
-                    .from('profiles')
-                    .upsert([profileData]);
-                    
-                if (adminError) {
-                    console.error("Error al crear perfil con supabaseAdmin:", adminError);
-                    
-                    // Intentar con el cliente normal como fallback
-                    const { error: directError } = await supabase
-                        .from('profiles')
-                        .upsert([profileData]);
-                        
-                    if (directError) {
-                        console.error("Error al crear perfil directamente:", directError);
-                    } else {
-                        console.log("Perfil creado directamente con éxito");
-                    }
-                } else {
-                    console.log("Perfil creado con supabaseAdmin con éxito");
+                if (profileError) {
+                    console.error("Error al crear perfil con RPC:", profileError);
+                    throw new Error("Error al crear el perfil del usuario: " + profileError.message);
                 }
-
+                
+                console.log("Perfil creado correctamente con RPC:", profileResult);
+                
                 // 3. Si es revendedor, crear entrada en la tabla resellers
                 if (initialRole === 'reseller') {
-                    console.log('Creando revendedor...');
-                    
-                    // Calcular fecha de expiración (30 días desde hoy)
-                    const expirationDate = new Date();
-                    expirationDate.setDate(expirationDate.getDate() + 30);
-                    
-                    // Crear los datos del revendedor
-                    const resellerData = {
-                        id: authData.user.id,
-                        full_name: fullName,
-                        email: email,
-                        status: initialStatus,
-                        phone: phone || '',
-                        plan_type: "basic",
-                        plan_end_date: expirationDate.toISOString(),
-                        created_at: new Date().toISOString()
-                    };
-                    
-                    // Intentar crear revendedor con supabaseAdmin
-                    console.log("Creando revendedor con supabaseAdmin...");
                     try {
-                        // Usar supabaseAdmin para ignorar RLS
-                        const { error: insertError } = await supabaseAdmin
-                            .from('resellers')
-                            .insert([resellerData]);
+                        // Calcular fecha de expiración (30 días desde hoy)
+                        const expirationDate = new Date();
+                        expirationDate.setDate(expirationDate.getDate() + 30);
+                        
+                        // Crear el revendedor usando RPC
+                        console.log("Creando revendedor con RPC update_user_status...");
+                        const { data: statusResult, error: statusError } = await supabase
+                            .rpc('update_user_status', { 
+                                user_id: authData.user.id, 
+                                new_status: initialStatus 
+                            });
                             
-                        if (insertError) {
-                            console.error("Error al insertar revendedor con supabaseAdmin:", insertError);
-                            
-                            // Intentar actualizar si falla la inserción
-                            const { error: updateError } = await supabaseAdmin
-                                .from('resellers')
-                                .update(resellerData)
-                                .eq('id', authData.user.id);
+                        if (statusError) {
+                            console.error("Error al crear revendedor con RPC update_user_status:", statusError);
+                        } else {
+                            console.log("Revendedor creado correctamente con RPC update_user_status");
+                        }
+                        
+                        // Intentar actualizar campos adicionales del revendedor
+                        console.log("Actualizando datos adicionales del revendedor...");
+                        try {
+                            const { error: updateError } = await supabase
+                                .rpc('update_reseller_info', {
+                                    reseller_id: authData.user.id,
+                                    reseller_phone: phone || '',
+                                    reseller_plan_type: "basic",
+                                    reseller_plan_end_date: expirationDate.toISOString()
+                                });
                                 
                             if (updateError) {
-                                console.error("Error al actualizar revendedor con supabaseAdmin:", updateError);
-                                
-                                // Intentar con el cliente normal como último recurso
-                                try {
-                                    console.log("Intentando con cliente normal como último recurso...");
-                                    const { error: normalError } = await supabase
-                                        .from('resellers')
-                                        .upsert([resellerData]);
-                                        
-                                    if (normalError) {
-                                        console.error("Error final al crear revendedor:", normalError);
-                                    } else {
-                                        console.log("Revendedor creado con cliente normal");
-                                    }
-                                } catch (normalError) {
-                                    console.error("Excepción con cliente normal:", normalError);
-                                }
+                                console.error("Error al actualizar info adicional del revendedor:", updateError);
                             } else {
-                                console.log("Revendedor actualizado correctamente con supabaseAdmin");
+                                console.log("Datos adicionales del revendedor actualizados correctamente");
                             }
-                        } else {
-                            console.log("Revendedor insertado correctamente con supabaseAdmin");
+                        } catch (updateError) {
+                            console.error("Excepción al actualizar datos adicionales:", updateError);
+                            // Continuamos a pesar del error
                         }
-                    } catch (adminResellerError) {
-                        console.error("Excepción al crear revendedor con supabaseAdmin:", adminResellerError);
+                    } catch (resellerError) {
+                        console.error("Error al configurar revendedor:", resellerError);
+                        // Continuamos a pesar del error, ya que el perfil se creó correctamente
                     }
                 }
-                
-                // 4. Forzar actualización del estado como último recurso
-                console.log("Forzando actualización del estado...");
-                const statusResult = await updateUserStatus(authData.user.id, initialStatus);
-                console.log("Resultado de updateUserStatus:", statusResult);
                 
                 console.log('Registro completado con éxito');
             } catch (error: any) {
-                console.error("Error al crear perfil o revendedor:", error);
+                console.error("Error al configurar el usuario:", error);
                 throw new Error("Se creó el usuario pero hubo un error al configurar su perfil: " + error.message);
             }
         } catch (error: any) {
