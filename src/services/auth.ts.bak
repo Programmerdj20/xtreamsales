@@ -1,0 +1,502 @@
+import { supabase } from "../lib/supabase";
+
+export interface User {
+    id: string;
+    email: string;
+    full_name: string;
+    role: "admin" | "reseller";
+    status: "pending" | "active" | "inactive";
+}
+
+export interface AuthResponse {
+    session: any;
+    user: User;
+}
+
+export const authService = {
+    async register(
+        email: string,
+        password: string,
+        fullName: string
+    ): Promise<void> {
+        try {
+            console.log("Iniciando registro de usuario:", { email, fullName });
+
+            // Determinar el rol y estado iniciales
+            const isAdmin = email === "andreschmde@gmail.com";
+            const initialRole = isAdmin ? "admin" : "reseller";
+            const initialStatus = isAdmin ? "active" : "pending";
+
+            console.log("Rol y estado iniciales:", {
+                initialRole,
+                initialStatus,
+            });
+
+            // 1. Registrar el usuario en auth
+            const { data: authData, error: authError } =
+                await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            role: initialRole,
+                            status: initialStatus,
+                            full_name: fullName,
+                        },
+                    },
+                });
+
+            console.log("Respuesta de auth.signUp:", {
+                user: authData?.user
+                    ? {
+                          id: authData.user.id,
+                          email: authData.user.email,
+                      }
+                    : null,
+                error: authError ? authError.message : null,
+            });
+
+            if (authError) {
+                if (authError.message.includes("already registered")) {
+                    throw new Error("El correo electrónico ya está registrado");
+                }
+                throw new Error(
+                    "Error al crear el usuario: " + authError.message
+                );
+            }
+
+            if (!authData.user) {
+                throw new Error("No se pudo crear el usuario");
+            }
+
+            console.log("Usuario creado en auth:", {
+                id: authData.user.id,
+                email: authData.user.email,
+            });
+
+            // 2. Crear el perfil del usuario
+            const profileData = {
+                id: authData.user.id,
+                email,
+                role: initialRole,
+                status: initialStatus,
+                full_name: fullName,
+                created_at: new Date().toISOString() // Asegurarnos de que created_at esté presente
+            };
+            
+            console.log('Intentando crear perfil:', profileData);
+            
+            // Verificar si el perfil ya existe (por si acaso)
+            const { data: existingProfile, error: checkProfileError } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', authData.user.id)
+                .maybeSingle();
+                
+            console.log('Verificación de perfil existente:', { 
+                existingProfile, 
+                error: checkProfileError ? checkProfileError.message : null 
+            });
+            
+            // Si el perfil ya existe, actualizarlo en lugar de insertarlo
+            let profileResult;
+            if (existingProfile) {
+                console.log('El perfil ya existe, actualizando...');
+                profileResult = await supabase
+                    .from('profiles')
+                    .update(profileData)
+                    .eq('id', authData.user.id)
+                    .select();
+            } else {
+                console.log('Creando nuevo perfil...');
+                // Intentar insertar el perfil directamente
+                console.log('Intentando crear perfil directamente...');
+                
+                // Primero, actualizar los metadatos del usuario para asegurarnos de que tenga los datos correctos
+                const { error: metadataError } = await supabase.auth.updateUser({
+                    data: {
+                        role: initialRole,
+                        status: initialStatus,
+                        full_name: fullName
+                    }
+                });
+                
+                if (metadataError) {
+                    console.error('Error al actualizar metadatos del usuario:', metadataError);
+                }
+                
+                // Ahora intentar insertar en la tabla profiles
+                const insertResult = await supabase
+                    .from('profiles')
+                    .insert([profileData]);
+                
+                if (insertResult.error) {
+                    console.error('Error al insertar perfil:', insertResult.error);
+                    
+                    // Si el error es de permisos, intentar un enfoque alternativo
+                    if (insertResult.error.code === '42501') { // Código de error de permisos
+                        console.log('Error de permisos, intentando enfoque alternativo...');
+                        
+                        // Intentar usar RPC si está disponible
+                        try {
+                            // Adaptar los nombres de los parámetros para la función RPC
+                            const rpcParams = {
+                                profile_id: profileData.id,
+                                profile_email: profileData.email,
+                                profile_role: profileData.role,
+                                profile_status: profileData.status,
+                                profile_full_name: profileData.full_name,
+                                profile_created_at: profileData.created_at
+                            };
+                            const { error: rpcError } = await supabase.rpc('create_profile', rpcParams);
+                            if (rpcError) {
+                                console.error('Error al crear perfil con RPC:', rpcError);
+                                throw rpcError;
+                            }
+                            console.log('Perfil creado con éxito usando RPC');
+                        } catch (rpcError) {
+                            console.error('Error al llamar a RPC para crear perfil:', rpcError);
+                            throw new Error(`Error al crear el perfil: ${insertResult.error.message}`);
+                        }
+                    } else {
+                        throw insertResult.error;
+                    }
+                } else {
+                    console.log('Perfil creado con éxito directamente');
+                }
+                
+                // Obtener el perfil recién creado
+                profileResult = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', authData.user.id)
+                    .single();
+            }
+            
+            const { data: insertedProfile, error: profileError } = profileResult || { data: null, error: null };
+
+            console.log('Respuesta de operación en profiles:', { 
+                insertedProfile, 
+                error: profileError ? profileError.message : null 
+            });
+
+            if (profileError) {
+                console.error('Error detallado al crear perfil:', JSON.stringify(profileError));
+                throw new Error(`Error al crear el perfil: ${profileError.message}`);
+            }
+            
+            // 3. Si es un revendedor, crear entrada en la tabla resellers
+            if (initialRole === 'reseller') {
+                // Calcular fecha de expiración (30 días desde hoy)
+                const expirationDate = new Date();
+                expirationDate.setDate(expirationDate.getDate() + 30);
+                
+                const resellerData = {
+                    id: authData.user.id,
+                    full_name: fullName,
+                    status: initialStatus,
+                    // Campos opcionales que pueden ser completados más tarde
+                    phone: '',
+                    plan_type: 'basic',
+                    plan_end_date: expirationDate.toISOString(),
+                    created_at: new Date().toISOString()
+                };
+                
+                console.log('Intentando crear revendedor:', resellerData);
+                
+                // Verificar si el revendedor ya existe (por si acaso)
+                const { data: existingReseller, error: checkResellerError } = await supabase
+                    .from('resellers')
+                    .select('id')
+                    .eq('id', authData.user.id)
+                    .maybeSingle();
+                    
+                console.log('Verificación de revendedor existente:', { 
+                    existingReseller, 
+                    error: checkResellerError ? checkResellerError.message : null 
+                });
+                
+                // Si el revendedor ya existe, actualizarlo en lugar de insertarlo
+                let resellerResult;
+                if (existingReseller) {
+                    console.log('El revendedor ya existe, actualizando...');
+                    resellerResult = await supabase
+                        .from('resellers')
+                        .update(resellerData)
+                        .eq('id', authData.user.id)
+                        .select();
+                } else {
+                    console.log('Creando nuevo revendedor...');
+                    // Intentar insertar el revendedor directamente
+                    const insertResult = await supabase
+                        .from('resellers')
+                        .insert([resellerData]);
+                    
+                    if (insertResult.error) {
+                        console.error('Error al insertar revendedor:', insertResult.error);
+                        
+                        // Si el error es de permisos, intentar un enfoque alternativo
+                        if (insertResult.error.code === '42501') { // Código de error de permisos
+                            console.log('Error de permisos, intentando enfoque alternativo...');
+                            
+                            // Intentar usar RPC si está disponible
+                            try {
+                                // Adaptar los nombres de los parámetros para la función RPC
+                                const rpcParams = {
+                                    reseller_id: resellerData.id,
+                                    reseller_full_name: resellerData.full_name,
+                                    reseller_status: resellerData.status,
+                                    reseller_phone: resellerData.phone,
+                                    reseller_plan_type: resellerData.plan_type,
+                                    reseller_plan_end_date: resellerData.plan_end_date,
+                                    reseller_created_at: resellerData.created_at
+                                };
+                                const { error: rpcError } = await supabase.rpc('create_reseller', rpcParams);
+                                if (rpcError) {
+                                    console.error('Error al crear revendedor con RPC:', rpcError);
+                                    // No lanzamos error aquí para no interrumpir el proceso de registro
+                                    // El administrador podrá completar esta información más tarde
+                                } else {
+                                    console.log('Revendedor creado con éxito usando RPC');
+                                }
+                            } catch (rpcError) {
+                                console.error('Error al llamar a RPC para crear revendedor:', rpcError);
+                                // No lanzamos error aquí para no interrumpir el proceso de registro
+                            }
+                        } else {
+                            // No lanzamos error aquí para no interrumpir el proceso de registro
+                            // El administrador podrá completar esta información más tarde
+                            console.log('Error no relacionado con permisos al crear revendedor:', insertResult.error);
+                        }
+                    } else {
+                        console.log('Revendedor creado con éxito directamente');
+                    }
+                    
+                    // Obtener el revendedor recién creado
+                    resellerResult = await supabase
+                        .from('resellers')
+                        .select('*')
+                        .eq('id', authData.user.id)
+                        .single();
+                }
+                
+                const { data: insertedReseller, error: resellerError } = resellerResult || { data: null, error: null };
+
+                console.log('Respuesta de operación en resellers:', { 
+                    insertedReseller, 
+                    error: resellerError ? resellerError.message : null 
+                });
+
+                if (resellerError) {
+                    console.error(
+                        "Error detallado al crear revendedor:",
+                        JSON.stringify(resellerError)
+                    );
+                    // No lanzamos error aquí para no interrumpir el proceso de registro
+                    // El administrador podrá completar esta información más tarde
+                }
+            }
+
+            console.log("Registro completado exitosamente para:", email);
+        } catch (error: any) {
+            console.error(
+                "Error detallado en registro:",
+                JSON.stringify(error)
+            );
+            throw error;
+        }
+    },
+    
+    // Actualizar el estado de un usuario
+    async updateUserRole(userId: string, role: "admin" | "reseller") {
+        try {
+            // 1. Actualizar en profiles
+            const { error: profileError } = await supabase
+                .from("profiles")
+                .update({ role })
+                .eq("id", userId);
+
+            if (profileError) throw profileError;
+
+            // 2. Verificar si el usuario es un revendedor y actualizar también en la tabla resellers
+            if (role === "reseller") {
+                // Verificar si ya existe en la tabla resellers
+                const { data: existingReseller } = await supabase
+                    .from("resellers")
+                    .select("id")
+                    .eq("id", userId)
+                    .maybeSingle();
+
+                if (!existingReseller) {
+                    // Si no existe, obtener datos del perfil para crear el revendedor
+                    const { data: profileData } = await supabase
+                        .from("profiles")
+                        .select("full_name")
+                        .eq("id", userId)
+                        .single();
+
+                    if (profileData) {
+                        // Calcular fecha de expiración (30 días desde hoy)
+                        const expirationDate = new Date();
+                        expirationDate.setDate(expirationDate.getDate() + 30);
+                        
+                        // Crear entrada en resellers
+                        await supabase.from("resellers").insert([
+                            {
+                                id: userId,
+                                full_name: profileData.full_name,
+                                status: "pending", // Por defecto, pendiente
+                                phone: "",
+                                plan_type: "basic",
+                                plan_end_date: expirationDate.toISOString(),
+                                created_at: new Date().toISOString()
+                            }
+                        ]);
+                    }
+                }
+            }
+
+            return { success: true };
+        } catch (error: any) {
+            console.error("Error actualizando rol:", error);
+
+        if (!existingReseller) {
+            // Si no existe, obtener datos del perfil para crear el revendedor
+            const { data: profileData } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", userId)
+                .single();
+
+            if (profileData) {
+                // Calcular fecha de expiración (30 días desde hoy)
+                const expirationDate = new Date();
+                expirationDate.setDate(expirationDate.getDate() + 30);
+                        
+                // Crear entrada en resellers
+                await supabase.from("resellers").insert([
+                    {
+                        id: userId,
+                        full_name: profileData.full_name,
+                        status: "pending", // Por defecto, pendiente
+                        phone: "",
+                        plan_type: "basic",
+                        plan_end_date: expirationDate.toISOString(),
+                        created_at: new Date().toISOString()
+                    }
+                ]);
+            }
+        }
+    },
+    
+    // Actualizar el estado de un usuario (función vacía para mantener compatibilidad)
+    async updateUserStatus(userId: string, status: "active" | "inactive" | "pending") {
+        console.log('Esta función ha sido reemplazada por userStatusService.ts');
+        return { success: true };
+    }
+    
+    // Iniciar sesión
+    async login(email: string, password: string): Promise<AuthResponse> {
+        try {
+            const { data: authData, error: authError } =
+                await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+
+            if (authError) {
+                throw new Error("Credenciales incorrectas");
+            }
+
+            // Usar los metadatos del usuario para obtener el rol y estado
+            const role =
+                authData.user.user_metadata?.role ||
+                (email === "andreschmde@gmail.com" ? "admin" : "reseller");
+            const status =
+                authData.user.user_metadata?.status ||
+                (email === "andreschmde@gmail.com" ? "active" : "pending");
+            const full_name =
+                authData.user.user_metadata?.full_name ||
+                (email === "andreschmde@gmail.com" ? "Andres" : "");
+
+            // Verificar si el usuario está pendiente o inactivo
+            if (status === "pending") {
+                throw new Error(
+                    "Tu cuenta está pendiente de aprobación por el administrador. Por favor, espera a que tu cuenta sea activada."
+                );
+            }
+
+            if (status === "inactive") {
+                throw new Error(
+                    "Tu cuenta ha sido desactivada. Por favor, contacta al administrador para más información."
+                );
+            }
+
+            return {
+                session: authData.session,
+                user: {
+                    id: authData.user.id,
+                    email: authData.user.email || "",
+                    role,
+                    status,
+                    full_name,
+                },
+            };
+        } catch (error: any) {
+            console.error("Error en login:", error);
+            throw error;
+        }
+    },
+
+    // Obtener el usuario actual
+    async getCurrentUser(): Promise<User | null> {
+        try {
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+            if (!session?.user) return null;
+
+            // Usar los metadatos del usuario para obtener el rol y estado
+            const role =
+                session.user.user_metadata?.role ||
+                (session.user.email === "andreschmde@gmail.com"
+                    ? "admin"
+                    : "reseller");
+            const status =
+                session.user.user_metadata?.status ||
+                (session.user.email === "andreschmde@gmail.com"
+                    ? "active"
+                    : "pending");
+            const full_name =
+                session.user.user_metadata?.full_name ||
+                (session.user.email === "andreschmde@gmail.com"
+                    ? "Andres"
+                    : "");
+
+            return {
+                id: session.user.id,
+                email: session.user.email || "",
+                role,
+                status,
+                full_name,
+            };
+        } catch (error) {
+            console.error("Error obteniendo usuario actual:", error);
+            return null;
+        }
+    },
+
+    // Cerrar sesión
+    async logout() {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            window.location.href = "/";
+        } catch (error) {
+            console.error("Error al cerrar sesión:", error);
+            throw new Error("Error al cerrar sesión");
+        }
+    },
+};
+
+export default authService;
