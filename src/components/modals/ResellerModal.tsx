@@ -29,48 +29,83 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
   // Función para calcular la fecha fin según el plan
   const calculateEndDate = (plan: string) => {
     const today = new Date();
+    let result;
+    
     switch (plan) {
       case 'Demo (24 Hrs)':
-        return new Date(today.setDate(today.getDate() + 1));
+        result = new Date(today);
+        result.setDate(today.getDate() + 1);
+        break;
       case '1 Mes':
-        return new Date(today.setMonth(today.getMonth() + 1));
+        result = new Date(today);
+        result.setMonth(today.getMonth() + 1);
+        break;
       case '3 Meses':
-        return new Date(today.setMonth(today.getMonth() + 3));
+        result = new Date(today);
+        result.setMonth(today.getMonth() + 3);
+        break;
       case '6 Meses':
-        return new Date(today.setMonth(today.getMonth() + 6));
+        result = new Date(today);
+        result.setMonth(today.getMonth() + 6);
+        break;
       case '12 Meses':
-        return new Date(today.setMonth(today.getMonth() + 12));
+        result = new Date(today);
+        result.setMonth(today.getMonth() + 12);
+        break;
       default:
-        return today;
+        result = new Date(today);
+        result.setMonth(today.getMonth() + 1); // Por defecto 1 mes
     }
+    
+    console.log(`Calculando fecha fin para plan ${plan}: ${result.toISOString()}`);
+    return result;
   };
 
   const formatDate = (date: Date) => {
     return date.toISOString().split('T')[0];
   };
 
-  const [formData, setFormData] = React.useState<ResellerFormData>(() => ({
-    fullName: reseller?.fullName || '',
-    email: reseller?.email || '',
-    password: '', // Vacío en modo edición
-    phone: reseller?.phone || '',
-    phoneCountry: reseller?.phoneCountry || 'co',
-    plan: reseller?.plan || '1 Mes',
-    endDate: reseller?.endDate || formatDate(calculateEndDate('1 Mes'))
-  }));
+  const [formData, setFormData] = React.useState<ResellerFormData>(() => {
+    // Calcular la fecha de fin para el plan por defecto (1 Mes)
+    const defaultEndDate = formatDate(calculateEndDate('1 Mes'));
+    console.log('Inicializando formulario con fecha de fin por defecto:', defaultEndDate);
+    
+    return {
+      fullName: reseller?.fullName || '',
+      email: reseller?.email || '',
+      password: '', // Vacío en modo edición
+      phone: reseller?.phone || '',
+      phoneCountry: reseller?.phoneCountry || 'co',
+      plan: reseller?.plan || '1 Mes',
+      endDate: reseller?.endDate || defaultEndDate
+    };
+  });
 
   React.useEffect(() => {
+    // Siempre calcular la fecha de fin para el plan seleccionado
+    const calculateDefaultEndDate = (plan: string) => {
+      return formatDate(calculateEndDate(plan || '1 Mes'));
+    };
+    
     if (reseller) {
+      // Modo edición
+      const endDate = calculateDefaultEndDate(reseller.plan);
+      console.log('Fecha calculada para edición:', endDate);
+      
       setFormData({
         fullName: reseller.fullName,
         email: reseller.email,
         password: '', // Vacío en modo edición
-        phone: reseller.phone,
+        phone: reseller.phone || '',
         phoneCountry: reseller.phoneCountry || 'co',
-        plan: reseller.plan,
-        endDate: reseller.endDate
+        plan: reseller.plan || '1 Mes',
+        endDate: endDate // Usar la fecha calculada
       });
     } else {
+      // Modo creación - Calcular la fecha de fin para 1 mes por defecto
+      const defaultEndDate = calculateDefaultEndDate('1 Mes');
+      console.log('Fecha de fin por defecto para nuevo revendedor:', defaultEndDate);
+      
       setFormData({
         fullName: '',
         email: '',
@@ -78,7 +113,7 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
         phone: '',
         phoneCountry: 'co',
         plan: '1 Mes',
-        endDate: formatDate(calculateEndDate('1 Mes'))
+        endDate: defaultEndDate
       });
     }
   }, [reseller]);
@@ -203,11 +238,13 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
                 value={formData.plan}
                 onChange={(e) => {
                   const newPlan = e.target.value;
+                  // Calcular la nueva fecha de fin basada en el plan seleccionado
                   const newEndDate = formatDate(calculateEndDate(newPlan));
+                  
                   setFormData(prev => ({ 
                     ...prev, 
                     plan: newPlan,
-                    endDate: newEndDate
+                    endDate: newEndDate // Actualizar automáticamente la fecha de fin
                   }));
                 }}
                 className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm [&>option]:bg-[#0e121d]"

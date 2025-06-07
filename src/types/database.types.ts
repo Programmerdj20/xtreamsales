@@ -1,14 +1,26 @@
+// Tipos para la base de datos
+
 export interface Reseller {
-  id: string;
-  created_at: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  plan_type: string;
-  plan_end_date: string;
-  status: 'active' | 'inactive' | 'pending';
+    id: string;
+    user_id?: string;
+    created_at?: string;
+    full_name: string;
+    email: string;
+    phone: string;
+    plan_type: string;
+    plan_end_date: string;
+    status: string;
 }
 
-export type NewReseller = Omit<Reseller, 'id' | 'created_at' | 'status'> & {
-  password: string;
-};
+export interface NewReseller {
+    full_name?: string;
+    email?: string;
+    phone?: string;
+    plan_type?: string;
+    plan_end_date?: string;
+    status?: string;
+}
+
+export interface ResellerWithPassword extends NewReseller {
+    password: string;
+}
