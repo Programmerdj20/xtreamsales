@@ -357,27 +357,21 @@ export const resellerService = {
             }
             
             // Prepara solo los campos realmente modificados
-            const rpcPayload: Record<string, any> = { reseller_id: id };
-            if (typeof updates.phone === 'string' && updates.phone.trim() !== '') {
-                rpcPayload.reseller_phone = updates.phone;
+            // Siempre envía los 4 parámetros esperados por la función SQL
+            const rpcPayload = {
+                reseller_id: id,
+                reseller_phone: (typeof updates.phone === 'string' && updates.phone.trim() !== '') ? updates.phone : null,
+                reseller_plan_type: (typeof updates.plan_type === 'string' && updates.plan_type.trim() !== '') ? updates.plan_type : null,
+                reseller_plan_end_date: plan_end_date || null
+            };
+            console.log('Actualizando información del revendedor con RPC update_reseller_info...', rpcPayload);
+            const { data: rpcResult, error: rpcError } = await supabase
+                .rpc('update_reseller_info', rpcPayload);
+            if (rpcError) {
+                console.error('Error al actualizar información del revendedor con RPC:', rpcError);
+                throw rpcError;
             }
-            if (typeof updates.plan_type === 'string' && updates.plan_type.trim() !== '') {
-                rpcPayload.reseller_plan_type = updates.plan_type;
-            }
-            if (plan_end_date) {
-                rpcPayload.reseller_plan_end_date = plan_end_date;
-            }
-            // Solo llama a la RPC si hay campos a actualizar
-            if (Object.keys(rpcPayload).length > 1) {
-                console.log('Actualizando información del revendedor con RPC update_reseller_info...', rpcPayload);
-                const { data: rpcResult, error: rpcError } = await supabase
-                    .rpc('update_reseller_info', rpcPayload);
-                if (rpcError) {
-                    console.error('Error al actualizar información del revendedor con RPC:', rpcError);
-                    throw rpcError;
-                }
-                console.log('Información del revendedor actualizada correctamente');
-            }
+            console.log('Información del revendedor actualizada correctamente');
             
             // Actualizar email si se proporciona (en la tabla profiles)
             if (updates.email) {
