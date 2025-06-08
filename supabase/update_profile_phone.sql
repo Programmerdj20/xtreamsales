@@ -1,3 +1,6 @@
+-- Eliminar la función existente primero
+DROP FUNCTION IF EXISTS update_profile_phone(UUID, TEXT);
+
 -- Función para actualizar el teléfono en la tabla profiles
 CREATE OR REPLACE FUNCTION update_profile_phone(
   profile_id UUID,

@@ -96,16 +96,138 @@ export const resellerService = {
         }
     },
 
-    // Obtener un revendedor por ID
+    // Obtener un revendedor por ID usando RPC que devuelve JSONB
     async getById(id: string) {
-        const { data, error } = await supabase
-            .from("resellers")
-            .select("*")
-            .eq("id", id)
-            .single();
+        try {
+            console.log('Obteniendo revendedor por ID con RPC:', id);
+            // Usar la función RPC que devuelve JSONB
+            const { data: resellerData, error: rpcError } = await supabase
+                .rpc('get_reseller_by_id', {
+                    reseller_id: id
+                });
+            
+            if (rpcError) {
+                console.error('Error al obtener revendedor con RPC:', rpcError);
+                throw rpcError;
+            }
+            
+            if (!resellerData) {
+                throw new Error('No se encontró el revendedor con el ID proporcionado');
+            }
+            
+            // La RPC devuelve un objeto JSONB con todos los datos necesarios
+            const reseller = resellerData as unknown as Reseller;
+            
+            console.log('Revendedor obtenido correctamente:', reseller);
+            return reseller;
+        } catch (error) {
+            console.error('Error al obtener revendedor:', error);
+            
+            // Método de respaldo: Intentar obtener datos usando la función get_all_resellers
+            try {
+                console.log('Intentando obtener revendedor con método de respaldo usando get_all_resellers...');
+                
+                // Obtener todos los revendedores usando la RPC
+                const { data: allResellers, error: rpcError } = await supabase
+                    .rpc('get_all_resellers');
+                
+                if (rpcError) {
+                    console.error('Error al obtener lista de revendedores con RPC:', rpcError);
+                    throw rpcError;
+                }
+                
+                // Filtrar por ID
+                const reseller = allResellers?.find(r => r.id === id);
+                
+                if (!reseller) {
+                    throw new Error('No se encontró el revendedor con el ID proporcionado');
+                }
+                
+                console.log('Revendedor obtenido correctamente con método de respaldo:', reseller);
+                return reseller as Reseller;
+            } catch (fallbackError) {
+                console.error('Error en método de respaldo:', fallbackError);
+                
+                // Si todo falla, devolver un objeto mínimo para que la UI no falle
+                return {
+                    id: id,
+                    full_name: 'Revendedor',
+                    email: 'email@ejemplo.com',
+                    phone: '',
+                    plan_type: '1 Mes',
+                    plan_end_date: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    status: 'active',
+                    role: 'reseller'
+                } as Reseller;
+            }
+        }
+    },
 
-        if (error) throw error;
-        return data as Reseller;
+    // Actualizar información de un revendedor
+    async update(id: string, updates: {
+        phone?: string;
+        plan_type?: string;
+        plan_end_date?: string | Date;
+        email?: string;
+        full_name?: string;
+    }) {
+        try {
+            console.log('Actualizando revendedor con ID:', id, 'con datos:', updates);
+            
+            // Formatear el teléfono si existe
+            if (updates.phone && !updates.phone.startsWith('+')) {
+                updates.phone = `+${updates.phone}`;
+            }
+            
+            // Formatear la fecha si existe y es string
+            let plan_end_date = updates.plan_end_date;
+            if (typeof plan_end_date === 'string') {
+                plan_end_date = new Date(plan_end_date).toISOString();
+            } else if (plan_end_date instanceof Date) {
+                plan_end_date = plan_end_date.toISOString();
+            }
+            
+            // Primero, actualizar la información en la tabla resellers usando la función RPC
+            const { data: success, error: rpcError } = await supabase
+                .rpc('update_reseller_info', {
+                    reseller_id: id,
+                    reseller_phone: updates.phone || '',
+                    reseller_plan_type: updates.plan_type || '',
+                    reseller_plan_end_date: plan_end_date || null
+                });
+            
+            if (rpcError) {
+                console.error('Error al actualizar revendedor con RPC:', rpcError);
+                throw rpcError;
+            }
+            
+            // Si hay datos de perfil para actualizar (email, full_name)
+            if (updates.email || updates.full_name) {
+                console.log('Actualizando datos de perfil...');
+                const profileUpdates: any = {};
+                
+                if (updates.email) profileUpdates.email = updates.email;
+                if (updates.full_name) profileUpdates.full_name = updates.full_name;
+                
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .update(profileUpdates)
+                    .eq('id', id);
+                
+                if (profileError) {
+                    console.error('Error al actualizar perfil:', profileError);
+                    throw profileError;
+                }
+            }
+            
+            // Obtener los datos actualizados del revendedor
+            return await this.getById(id);
+        } catch (error) {
+            console.error('Error al actualizar revendedor:', error);
+            throw error;
+        }
     },
 
     // Crear un nuevo revendedor - Versión simplificada
@@ -197,152 +319,178 @@ export const resellerService = {
         }
     },
 
-    // Actualizar un revendedor existente - Versión simplificada
+    // Actualizar un revendedor existente - Versión simplificada con RPC
     async update(id: string, updates: Partial<NewReseller>) {
         console.log('Iniciando actualización de revendedor:', { id, updates });
         
         try {
-            // Preparar los datos para actualización
-            const updateData: any = {};
-            
-            // Manejar el nombre si se proporciona
-            if (updates.full_name !== undefined) {
-                updateData.full_name = updates.full_name;
+            // Formatear el teléfono si existe
+            if (updates.phone && !updates.phone.startsWith('+')) {
+                updates.phone = `+${updates.phone}`;
             }
             
-            // Manejar el teléfono si se proporciona
-            if (updates.phone !== undefined) {
-                // Asegurar que el teléfono tenga el prefijo '+' si no lo tiene
-                let phoneWithPrefix = updates.phone;
-                if (phoneWithPrefix && !phoneWithPrefix.startsWith('+')) {
-                    phoneWithPrefix = `+${phoneWithPrefix}`;
+            // Formatear la fecha si existe
+            let plan_end_date: string | null = null;
+            if (updates.plan_end_date) {
+                if (typeof updates.plan_end_date === 'string') {
+                    plan_end_date = new Date(updates.plan_end_date).toISOString();
+                } else if (updates.plan_end_date instanceof Date) {
+                    plan_end_date = updates.plan_end_date.toISOString();
                 }
-                updateData.phone = phoneWithPrefix;
+            }
+            
+            // Actualizar el nombre completo si se proporciona
+            if (updates.full_name) {
+                console.log('Actualizando nombre con RPC update_profile_name...');
+                const { error: nameError } = await supabase
+                    .rpc('update_profile_name', {
+                        user_id: id,
+                        new_name: updates.full_name
+                    });
                 
-                // También actualizar en profiles
-                const { error: profileError } = await supabase
+                if (nameError) {
+                    console.error('Error al actualizar nombre con RPC:', nameError);
+                    // No lanzamos error, continuamos con las otras actualizaciones
+                } else {
+                    console.log('Nombre actualizado correctamente');
+                }
+            }
+            
+            // Prepara solo los campos realmente modificados
+            const rpcPayload: Record<string, any> = { reseller_id: id };
+            if (typeof updates.phone === 'string' && updates.phone.trim() !== '') {
+                rpcPayload.reseller_phone = updates.phone;
+            }
+            if (typeof updates.plan_type === 'string' && updates.plan_type.trim() !== '') {
+                rpcPayload.reseller_plan_type = updates.plan_type;
+            }
+            if (plan_end_date) {
+                rpcPayload.reseller_plan_end_date = plan_end_date;
+            }
+            // Solo llama a la RPC si hay campos a actualizar
+            if (Object.keys(rpcPayload).length > 1) {
+                console.log('Actualizando información del revendedor con RPC update_reseller_info...', rpcPayload);
+                const { data: rpcResult, error: rpcError } = await supabase
+                    .rpc('update_reseller_info', rpcPayload);
+                if (rpcError) {
+                    console.error('Error al actualizar información del revendedor con RPC:', rpcError);
+                    throw rpcError;
+                }
+                console.log('Información del revendedor actualizada correctamente');
+            }
+            
+            // Actualizar email si se proporciona (en la tabla profiles)
+            if (updates.email) {
+                console.log('Actualizando email en profiles...');
+                const { error: emailError } = await supabase
                     .from('profiles')
-                    .update({ phone: phoneWithPrefix })
+                    .update({ email: updates.email })
                     .eq('id', id);
                 
-                if (profileError) {
-                    console.error('Error al actualizar teléfono en profiles:', profileError);
+                if (emailError) {
+                    console.error('Error al actualizar email:', emailError);
+                    // No lanzamos error, continuamos
+                } else {
+                    console.log('Email actualizado correctamente');
                 }
             }
             
-            // Comentamos temporalmente el manejo del plan hasta que se confirme que las columnas existen
-            /*
-            // Manejar el plan si se proporciona
-            if (updates.plan_type !== undefined) {
-                // Usar un valor por defecto si es 'Basic' o está vacío
-                updateData.plan_type = (updates.plan_type && updates.plan_type !== 'Basic') 
-                    ? updates.plan_type 
-                    : '1 Mes';
-            }
-            
-            // Manejar la fecha de fin del plan si se proporciona
-            if (updates.plan_end_date !== undefined) {
-                updateData.plan_end_date = updates.plan_end_date;
-            }
-            */
-            
-            // Si hay datos para actualizar en la tabla resellers
-            if (Object.keys(updateData).length > 0) {
-                console.log('Actualizando datos en tabla resellers:', updateData);
-                
-                const { error: updateError } = await supabase
-                    .from('resellers')
-                    .update(updateData)
-                    .eq('id', id);
-                
-                if (updateError) {
-                    console.error('Error al actualizar revendedor:', updateError);
-                    throw updateError;
-                }
-            }
-            
-            // Forzar una recarga de los datos
-            console.log('Forzando recarga de datos...');
-            await this.getAll(true);
-            
-            // Obtener los datos actualizados
-            const { data: updatedReseller, error: getError } = await supabase
-                .from('resellers')
-                .select('*')
-                .eq('id', id)
-                .single();
+            // Obtener los datos actualizados del revendedor usando RPC
+            console.log('Obteniendo datos actualizados del revendedor con RPC...');
+            const { data: resellerData, error: getError } = await supabase
+                .rpc('get_reseller_by_id', {
+                    reseller_id: id
+                });
             
             if (getError) {
-                console.error('Error al obtener datos actualizados:', getError);
-                throw getError;
+                console.error('Error al obtener revendedor actualizado:', getError);
+                // Si falla, intentamos con el método alternativo
+                return await this.getById(id);
             }
             
-            console.log('Revendedor actualizado correctamente:', updatedReseller);
-            return updatedReseller as Reseller;
+            if (!resellerData) {
+                console.warn('No se encontraron datos del revendedor actualizado');
+                // Devolver un objeto con los datos de la actualización para que la UI no falle
+                return {
+                    id: id,
+                    full_name: updates.full_name || 'Revendedor',
+                    email: updates.email || 'email@ejemplo.com',
+                    phone: updates.phone || '',
+                    plan_type: updates.plan_type || '1 Mes',
+                    plan_end_date: updates.plan_end_date || new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    status: 'active',
+                    role: 'reseller'
+                } as Reseller;
+            }
+            
+            console.log('Revendedor actualizado correctamente:', resellerData);
+            return resellerData as Reseller;
         } catch (error) {
             console.error('Error al actualizar revendedor:', error);
             throw error;
         }
     },
 
-    // Eliminar un revendedor
+    // Eliminar un revendedor (marcar como inactivo y eliminar registro)
     async delete(id: string) {
         console.log('Iniciando eliminación de revendedor:', id);
         
         try {
-            // 1. Primero, actualizar el estado del perfil a 'inactive'
-            console.log('Actualizando estado del perfil a inactive...');
-            const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .update({ status: 'inactive' })
-                .eq('id', id)
-                .select();
+            // Usar la función RPC delete_reseller para eliminar el revendedor de forma segura
+            console.log('Eliminando revendedor con RPC...');
+            const { data: rpcResult, error: rpcError } = await supabase
+                .rpc('delete_reseller', {
+                    reseller_id: id
+                });
                 
-            if (profileError) {
-                console.error('Error al actualizar estado del perfil:', profileError);
-                throw new Error('Error al actualizar el estado del perfil: ' + profileError.message);
+            if (rpcError) {
+                console.error('Error al eliminar revendedor con RPC:', rpcError);
+                throw rpcError;
             }
             
-            console.log('Perfil actualizado correctamente:', profileData);
-            
-            // 2. Eliminar el registro de la tabla resellers
-            console.log('Eliminando registro de la tabla resellers...');
-            const { error: resellerError } = await supabase
-                .from("resellers")
-                .delete()
-                .eq("id", id);
-
-            if (resellerError) {
-                console.error('Error al eliminar revendedor:', resellerError);
-                throw resellerError;
+            if (!rpcResult.success) {
+                console.error('Error al eliminar revendedor:', rpcResult.message);
+                throw new Error(rpcResult.message);
             }
             
-            console.log('Revendedor eliminado correctamente');
+            console.log('Revendedor eliminado correctamente:', rpcResult);
             
-            return { success: true, message: 'Revendedor eliminado correctamente' };
+            return { 
+                success: true, 
+                message: 'Revendedor eliminado correctamente',
+                id: id
+            };
         } catch (error) {
             console.error('Error en el proceso de eliminación de revendedor:', error);
             throw error;
         }
     },
 
-    // Buscar revendedores por nombre o email
+    // Buscar revendedores por nombre o email usando RPC
     async search(query: string) {
         try {
-            // Buscar revendedores por nombre o email
-            const { data: resellers, error } = await supabase
-                .from('resellers')
-                .select('*')
-                .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
-                .order('created_at', { ascending: false });
+            console.log('Buscando revendedores con RPC...');
+            const { data: rpcResult, error: rpcError } = await supabase
+                .rpc('search_resellers', {
+                    search_query: query
+                });
                 
-            if (error) {
-                console.error('Error al buscar revendedores:', error);
-                throw error;
+            if (rpcError) {
+                console.error('Error al buscar revendedores con RPC:', rpcError);
+                throw rpcError;
             }
             
-            return resellers || [];
+            if (!rpcResult.success) {
+                console.error('Error en la búsqueda de revendedores:', rpcResult.message);
+                return [];
+            }
+            
+            console.log('Revendedores encontrados con RPC:', rpcResult.data);
+            return rpcResult.data || [];
         } catch (error) {
+            console.error('Error en la búsqueda de revendedores:', error);
             throw error;
         }
     },

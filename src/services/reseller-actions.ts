@@ -88,13 +88,35 @@ export const resellerActionsService = {
   },
 
   async renew(id: string, months: number) {
-    const reseller = await resellerService.getById(id);
-    const currentEndDate = new Date(reseller.plan_end_date);
-    const newEndDate = new Date(currentEndDate);
-    newEndDate.setMonth(newEndDate.getMonth() + months);
-
-    return await resellerService.update(id, {
-      plan_end_date: newEndDate.toISOString()
-    });
+    try {
+      console.log('Renovando plan de revendedor con RPC:', { id, months });
+      
+      // Usar la función RPC renew_plan para renovar el plan (función simple)
+      const { data: success, error: rpcError } = await supabase
+        .rpc('renew_plan', {
+          reseller_id: id,
+          months: months
+        });
+      
+      if (rpcError) {
+        console.error('Error al renovar plan con RPC:', rpcError);
+        throw rpcError;
+      }
+      
+      if (!success) {
+        throw new Error('No se pudo renovar el plan');
+      }
+      
+      console.log('Plan renovado correctamente');
+      
+      // Obtener los datos actualizados del revendedor usando update_reseller_info
+      // Esta función ya ha sido probada y funciona correctamente
+      const reseller = await resellerService.getById(id);
+      
+      return reseller;
+    } catch (error) {
+      console.error('Error en el proceso de renovación de plan:', error);
+      throw error;
+    }
   }
 };

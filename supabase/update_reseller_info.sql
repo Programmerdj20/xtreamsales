@@ -20,8 +20,7 @@ BEGIN
     SET 
       phone = reseller_phone,
       plan_type = reseller_plan_type,
-      plan_end_date = reseller_plan_end_date,
-      updated_at = NOW()
+      plan_end_date = reseller_plan_end_date
     WHERE id = reseller_id;
   ELSE
     -- Insertar nuevo revendedor

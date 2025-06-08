@@ -18,10 +18,9 @@ import {
 import { Label } from '../../components/ui/label';
 import { Input } from '../../components/ui/input';
 import { authService } from "../../services/auth";
-import { updateUserStatus } from "../../services/userStatusService";
 import { toast } from 'sonner';
 import { Trash2, UserCog, AlertTriangle, Shield, User, Mail } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from "../../lib/supabase";
 
 interface UserRoleModalProps {
   isOpen: boolean;
@@ -56,51 +55,93 @@ export function UserRoleModal({
     setLoading(true);
 
     try {
+      console.log('Iniciando actualización de usuario:', { userId, role, status, name });
+
       // Actualizar rol si cambió
       if (role !== currentRole) {
-        await authService.updateUserRole(userId, role as 'admin' | 'reseller');
+        console.log('Actualizando rol de usuario...');
+        const { data: rpcResult, error: rpcError } = await supabase
+          .rpc('update_user_role', {
+            user_id: userId,
+            new_role: role
+          });
+        
+        if (rpcError) {
+          console.error('Error al actualizar rol con RPC:', rpcError);
+          throw rpcError;
+        } else {
+          console.log('Rol actualizado correctamente con RPC:', rpcResult);
+        }
       }
 
       // Actualizar estado si cambió
       if (status !== currentStatus) {
-        await updateUserStatus(userId, status as 'active' | 'inactive' | 'pending');
+        console.log('Actualizando estado de usuario...');
+        const { data: rpcResult, error: rpcError } = await supabase
+          .rpc('update_user_status', {
+            user_id: userId,
+            new_status: status
+          });
+        
+        if (rpcError) {
+          console.error('Error al actualizar estado con RPC:', rpcError);
+          throw rpcError;
+        } else {
+          console.log('Estado actualizado correctamente con RPC:', rpcResult);
+        }
       }
 
       // Actualizar nombre si cambió y estamos en modo edición
       if (isEditing && name !== userName) {
-        // Actualizar en profiles
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ full_name: name })
-          .eq('id', userId);
-
-        if (profileError) throw profileError;
-
-        // Actualizar en resellers si es un revendedor
-        if (role === 'reseller') {
-          const { error: resellerError } = await supabase
-            .from('resellers')
-            .update({ full_name: name })
-            .eq('id', userId);
-
-          if (resellerError) console.error('Error al actualizar nombre en resellers:', resellerError);
+        console.log('Actualizando nombre de usuario...');
+        
+        try {
+          // Usar la función RPC update_profile_name para actualizar el nombre en todas las tablas
+          console.log('Actualizando nombre con RPC update_profile_name...');
+          const { data: rpcResult, error: rpcError } = await supabase
+            .rpc('update_profile_name', {
+              user_id: userId,
+              new_name: name
+            });
+          
+          if (rpcError) {
+            console.error('Error al actualizar nombre con RPC:', rpcError);
+            throw rpcError;
+          } else {
+            console.log('Nombre actualizado correctamente con RPC:', rpcResult);
+          }
+          
+          // Intentar actualizar también los metadatos del usuario en auth si es posible
+          try {
+            console.log('Intentando actualizar metadatos del usuario...');
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData?.session) {
+              const { error: updateError } = await supabase.auth.updateUser({
+                data: { full_name: name }
+              });
+              
+              if (updateError) {
+                console.error('Error al actualizar metadatos con updateUser:', updateError);
+              } else {
+                console.log('Metadatos actualizados con updateUser');
+              }
+            }
+          } catch (err) {
+            console.error('Excepción al actualizar metadatos:', err);
+            // No lanzar error aquí para no interrumpir el flujo principal
+          }
+        } catch (err) {
+          console.error('Excepción al actualizar nombre:', err);
+          throw err;
         }
-
-        // Actualizar metadatos del usuario
-        const { error: metadataError } = await supabase.auth.admin.updateUserById(
-          userId,
-          { user_metadata: { full_name: name } }
-        );
-
-        if (metadataError) console.error('Error al actualizar metadatos:', metadataError);
       }
 
       toast.success('Usuario actualizado exitosamente');
       onUpdate();
       onClose();
     } catch (error: any) {
-      toast.error('Error al actualizar el usuario');
-      console.error('Error:', error);
+      toast.error('Error al actualizar el usuario: ' + (error.message || 'Error desconocido'));
+      console.error('Error general en actualización:', error);
     } finally {
       setLoading(false);
     }
@@ -114,34 +155,40 @@ export function UserRoleModal({
 
     setLoading(true);
     try {
-      // Eliminar de la tabla profiles
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
-
-      if (profileError) throw profileError;
-
-      // Eliminar de la tabla resellers si es un revendedor
-      if (role === 'reseller') {
-        const { error: resellerError } = await supabase
-          .from('resellers')
-          .delete()
-          .eq('id', userId);
-
-        if (resellerError) console.error('Error al eliminar de resellers:', resellerError);
+      // Paso 1: Eliminar usuario de las tablas de la base de datos usando RPC
+      console.log('Eliminando usuario de las tablas con RPC...');
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('delete_user', {
+          user_id: userId
+        });
+      
+      if (rpcError) {
+        console.error('Error al eliminar usuario con RPC:', rpcError);
+        throw rpcError;
+      } else {
+        console.log('Usuario eliminado correctamente de las tablas:', rpcResult);
       }
 
-      // Eliminar el usuario de auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-
-      if (authError) throw authError;
+      // Paso 2: Intentar eliminar el usuario de Auth usando authService
+      try {
+        console.log('Intentando eliminar usuario de Auth...');
+        await authService.deleteUser(userId);
+        console.log('Usuario eliminado correctamente de Auth');
+      } catch (authError: any) {
+        console.error('Error al eliminar usuario de Auth:', authError);
+        // No interrumpimos el flujo si falla la eliminación de Auth
+        // ya que las tablas de la base de datos ya fueron limpiadas
+        toast.warning(
+          'El usuario fue eliminado de la base de datos pero puede quedar un registro en Auth. ' +
+          (authError.message || 'Se requiere acceso de administrador para eliminar completamente.')
+        );
+      }
 
       toast.success('Usuario eliminado exitosamente');
       onUpdate();
       onClose();
     } catch (error: any) {
-      toast.error('Error al eliminar el usuario');
+      toast.error('Error al eliminar el usuario: ' + (error.message || 'Error desconocido'));
       console.error('Error:', error);
     } finally {
       setLoading(false);

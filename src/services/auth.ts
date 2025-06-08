@@ -406,6 +406,44 @@ export const authService = {
             throw new Error("Error al cerrar sesión");
         }
     },
+    
+    // Eliminar un usuario (solo disponible para administradores)
+    async deleteUser(userId: string): Promise<void> {
+        try {
+            console.log("Intentando eliminar usuario de Auth:", userId);
+            
+            // Verificar si hay una sesión activa
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (!sessionData?.session) {
+                throw new Error("No hay una sesión activa para realizar esta operación");
+            }
+            
+            // Intentar eliminar el usuario usando la API de Admin
+            // Nota: Esto solo funcionará si el usuario tiene permisos de administrador
+            try {
+                // Primero intentamos con la API de Admin si está disponible
+                if (supabaseAdmin) {
+                    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+                    if (error) {
+                        console.error("Error al eliminar usuario con supabaseAdmin:", error);
+                        throw error;
+                    }
+                    console.log("Usuario eliminado correctamente de Auth con supabaseAdmin");
+                    return;
+                }
+            } catch (adminError) {
+                console.error("Error o no disponible supabaseAdmin:", adminError);
+                // Continuamos con el siguiente método si este falla
+            }
+            
+            // Como alternativa, mostramos un mensaje indicando que la eliminación de Auth debe ser manual
+            console.log("No se pudo eliminar el usuario de Auth automáticamente");
+            throw new Error("La eliminación del usuario de Auth debe ser realizada manualmente por un administrador");
+        } catch (error: any) {
+            console.error("Error en deleteUser:", error);
+            throw error;
+        }
+    },
 };
 
 export default authService;

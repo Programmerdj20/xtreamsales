@@ -181,6 +181,8 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                 className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm"
                 required
+                readOnly={isEditing}
+                style={isEditing ? { backgroundColor: '#222', color: '#888', cursor: 'not-allowed' } : {}}
               />
             </div>
 
