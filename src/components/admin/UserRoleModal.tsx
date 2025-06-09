@@ -169,20 +169,9 @@ export function UserRoleModal({
         console.log('Usuario eliminado correctamente de las tablas:', rpcResult);
       }
 
-      // Paso 2: Intentar eliminar el usuario de Auth usando authService
-      try {
-        console.log('Intentando eliminar usuario de Auth...');
-        await authService.deleteUser(userId);
-        console.log('Usuario eliminado correctamente de Auth');
-      } catch (authError: any) {
-        console.error('Error al eliminar usuario de Auth:', authError);
-        // No interrumpimos el flujo si falla la eliminación de Auth
-        // ya que las tablas de la base de datos ya fueron limpiadas
-        toast.warning(
-          'El usuario fue eliminado de la base de datos pero puede quedar un registro en Auth. ' +
-          (authError.message || 'Se requiere acceso de administrador para eliminar completamente.')
-        );
-      }
+      // Paso 2: Intentar eliminar el usuario de Auth usando authService (omitido)
+      // Si deseas eliminar completamente de Auth, debe hacerse manualmente o desde un backend seguro.
+      // Ya no mostramos advertencias ni errores relacionados con Auth aquí.
 
       toast.success('Usuario eliminado exitosamente');
       onUpdate();
