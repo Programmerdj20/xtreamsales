@@ -1,12 +1,8 @@
 import { supabase } from "../lib/supabase";
-import { Reseller, NewReseller } from "../types/database.types";
-
-// Interfaz para el password que no está en NewReseller
-interface ResellerWithPassword extends NewReseller {
-    password?: string;
-}
-
+import { Reseller } from "../types/database.types";
 import { v4 as uuidv4 } from 'uuid';
+
+// (Eliminada interfaz ResellerWithPassword porque no se utiliza)
 
 export const resellerService = {
     // Crear un nuevo revendedor de forma robusta usando solo funciones RPC
@@ -26,19 +22,19 @@ export const resellerService = {
       const userId = uuidv4();
 
       // 1. Crear perfil en profiles
-      const { data: profileResult, error: profileError } = await supabase.rpc('create_user_profile', {
+      const { data: profileResult, error: profileError }: { data: { success: boolean; message?: string } | null; error: { message?: string } | null } = await supabase.rpc('create_user_profile', {
         user_id: userId,
         user_email: email,
         user_role: 'reseller',
         user_status: 'active',
         user_full_name: full_name
       });
-      if (profileError || !profileResult?.success) {
-        throw new Error(profileResult?.message || profileError?.message || 'Error creando perfil');
+      if (profileError || !(profileResult && profileResult.success)) {
+        throw new Error((profileResult && profileResult.message) || (profileError && profileError.message) || 'Error creando perfil');
       }
 
       // 2. Crear registro en resellers
-      const { data: resellerResult, error: resellerError } = await supabase.rpc('create_reseller', {
+      const { data: resellerResult, error: resellerError }: { data: { success: boolean; message?: string } | null; error: { message?: string } | null } = await supabase.rpc('create_reseller', {
         user_id: userId,
         user_email: email,
         user_full_name: full_name,
@@ -47,8 +43,8 @@ export const resellerService = {
         user_status: 'active',
         user_plan_end_date: plan_end_date
       });
-      if (resellerError || !resellerResult?.success) {
-        throw new Error(resellerResult?.message || resellerError?.message || 'Error creando revendedor');
+      if (resellerError || !(resellerResult && resellerResult.success)) {
+        throw new Error((resellerResult && resellerResult.message) || (resellerError && resellerError.message) || 'Error creando revendedor');
       }
 
       return {
@@ -64,29 +60,29 @@ export const resellerService = {
         try {
             // Primero, obtener todos los perfiles con rol 'reseller'
             console.log('Obteniendo perfiles con rol reseller...');
-            const { data: profilesData, error: profilesError } = await supabase
+            const { data: profilesData, error: profilesError }: { data: (Reseller & { role?: string })[] | null; error: { message?: string } | null } = await supabase
                 .rpc('get_all_profiles');
                 
-            if (profilesError) {
+            if (profilesError || !Array.isArray(profilesData)) {
                 console.error('Error al obtener perfiles con RPC:', profilesError);
                 return [];
             }
             
             // Filtrar solo los perfiles con rol 'reseller'
-            const resellerProfiles = profilesData?.filter(p => p.role === 'reseller') || [];
+            const resellerProfiles = profilesData.filter((p) => p && p.role === 'reseller');
             console.log(`Encontrados ${resellerProfiles.length} perfiles de revendedores`);
             
             // Obtener datos de la tabla resellers usando RPC
             console.log('Obteniendo datos de resellers...');
-            const { data: resellersData, error: resellersError } = await supabase
+            const { data: resellersData, error: resellersError }: { data: Reseller[] | null; error: { message?: string } | null } = await supabase
                 .rpc('get_all_resellers');
                 
             // Si hay un error al obtener resellers, usar solo los perfiles
-            if (resellersError) {
+            if (resellersError || !Array.isArray(resellersData)) {
                 console.error('Error al obtener resellers con RPC:', resellersError);
                 console.log('Usando solo datos de perfiles para revendedores');
                 
-                return resellerProfiles.map(profile => ({
+                return resellerProfiles.map((profile) => ({
                     id: profile.id,
                     user_id: profile.id,
                     created_at: profile.created_at,
@@ -208,54 +204,42 @@ export const resellerService = {
         }
     },
     async update(id: string, updates: Partial<Reseller>) {
-        try {
-            // Actualizar nombre completo si cambia
-            if (updates.full_name) {
-                await supabase.rpc('update_profile_name', { user_id: id, new_name: updates.full_name });
-            }
-            // Formatear fecha del plan
-            let plan_end_date: string | null = null;
-            if (updates.plan_end_date) {
-                if (typeof updates.plan_end_date === 'string') {
-                    plan_end_date = new Date(updates.plan_end_date).toISOString();
-                } else if (updates.plan_end_date instanceof Date) {
-                    plan_end_date = updates.plan_end_date.toISOString();
-                }
-            }
-            // Actualizar datos principales del reseller
-            const { error: rpcError } = await supabase.rpc('update_reseller_info', {
-                reseller_id: id,
-                reseller_phone: typeof updates.phone === 'string' ? updates.phone : '',
-                reseller_plan_type: typeof updates.plan_type === 'string' ? updates.plan_type : '',
-                reseller_plan_end_date: plan_end_date
-            });
-            if (rpcError) throw rpcError;
-            // Actualizar email si corresponde
-            if (updates.email) {
-                await supabase.from('profiles').update({ email: updates.email }).eq('id', id);
-            }
-            // Retornar el reseller actualizado
-            return await this.getById(id);
-        } catch (error) {
-            throw error;
+        // Actualizar nombre completo si cambia
+        if (updates.full_name) {
+            await supabase.rpc('update_profile_name', { user_id: id, new_name: updates.full_name });
         }
+        // Formatear fecha del plan
+        let plan_end_date: string | null = null;
+        if (updates.plan_end_date && typeof updates.plan_end_date === 'string') {
+            plan_end_date = new Date(updates.plan_end_date).toISOString();
+        }
+        // Actualizar datos principales del reseller
+        const { error: rpcError }: { error: { message?: string } | null } = await supabase.rpc('update_reseller_info', {
+            reseller_id: id,
+            reseller_phone: typeof updates.phone === 'string' ? updates.phone : '',
+            reseller_plan_type: typeof updates.plan_type === 'string' ? updates.plan_type : '',
+            reseller_plan_end_date: plan_end_date
+        });
+        if (rpcError) throw rpcError;
+        // Actualizar email si corresponde
+        if (updates.email) {
+            await supabase.from('profiles').update({ email: updates.email }).eq('id', id);
+        }
+        // Retornar el reseller actualizado
+        return await resellerService.getById(id);
     },
     async delete(id: string) {
-        try {
-            const { data: rpcResult, error: rpcError } = await supabase.rpc('delete_reseller', { reseller_id: id });
-            if (rpcError) {
-                if (rpcError.message && rpcError.message.includes('No se encontró el revendedor')) {
-                    return { success: true, message: 'Revendedor ya no existe (idempotente)', id };
-                }
-                throw rpcError;
+        const { data: rpcResult, error: rpcError }: { data: { success: boolean; message?: string } | null; error: { message?: string } | null } = await supabase.rpc('delete_reseller', { reseller_id: id });
+        if (rpcError) {
+            if (rpcError.message && rpcError.message.includes('No se encontró el revendedor')) {
+                return { success: true, message: 'Revendedor ya no existe (idempotente)', id };
             }
-            if (!rpcResult || rpcResult.success === false) {
-                return { success: true, message: rpcResult?.message || 'Revendedor ya no existe (idempotente)', id };
-            }
-            return { success: true, message: 'Revendedor eliminado correctamente', id };
-        } catch (error) {
-            throw error;
+            throw rpcError;
         }
+        if (!rpcResult || rpcResult.success === false) {
+            return { success: true, message: rpcResult?.message || 'Revendedor ya no existe (idempotente)', id };
+        }
+        return { success: true, message: 'Revendedor eliminado correctamente', id };
     }
 };
 
