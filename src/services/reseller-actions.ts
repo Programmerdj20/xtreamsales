@@ -2,14 +2,14 @@ import { supabase } from '../lib/supabase';
 import { resellerService } from './resellers';
 import { templateService } from './templates';
 
-const replaceVariables = (template: string, variables: Record<string, string>) => {
+export const replaceVariables = (template: string, variables: Record<string, string>) => {
   return template.replace(/\{([^}]+)\}/g, (_, key) => {
     const value = variables[key];
     return value !== undefined ? value : `{${key}}`;
   });
 };
 
-const openWhatsApp = (phone: string, message: string) => {
+export const openWhatsApp = (phone: string, message: string) => {
   const encodedMessage = encodeURIComponent(message);
   window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
 };
@@ -17,15 +17,15 @@ const openWhatsApp = (phone: string, message: string) => {
 export const resellerActionsService = {
   async sendCredentials(resellerId: string) {
     try {
-      // Obtener datos del revendedor
+      // Obtener datos del revendedor usando RPC para evitar restricciones de RLS en SELECT directo
       const { data: reseller, error: resellerError } = await supabase
-        .from('resellers')
-        .select('*')
-        .eq('id', resellerId)
-        .single();
+        .rpc('get_reseller_by_id', { reseller_id: resellerId });
 
-      if (resellerError) throw resellerError;
+      if (resellerError) throw new Error('No tienes permisos para leer los datos del revendedor o hubo un error de conexión.');
       if (!reseller) throw new Error('Revendedor no encontrado');
+      if (!reseller.phone) throw new Error('El revendedor no tiene teléfono registrado.');
+      if (!reseller.email) throw new Error('El revendedor no tiene correo registrado.');
+      if (!reseller.plan_end_date) throw new Error('El revendedor no tiene fecha de vencimiento.');
 
       // Obtener plantilla de bienvenida
       const templates = await templateService.getAll();
@@ -34,32 +34,36 @@ export const resellerActionsService = {
 
       // Reemplazar variables en la plantilla
       const message = replaceVariables(welcomeTemplate.content, {
-        cliente: reseller.full_name,
-        plataforma: reseller.plan_type,
-        usuario: reseller.email,
-        contraseña: reseller.password,
-        fecha_fin: new Date(reseller.plan_end_date).toLocaleDateString()
+        cliente: reseller.full_name || '',
+        plataforma: reseller.plan_type || '',
+        usuario: reseller.email || '',
+        contraseña: reseller.password || '',
+        fecha_fin: reseller.plan_end_date ? new Date(reseller.plan_end_date).toLocaleDateString() : ''
       });
+
+      if (message.includes('{')) {
+        throw new Error('Faltan datos para completar el mensaje. Revisa los datos del revendedor.');
+      }
 
       // Abrir WhatsApp
       openWhatsApp(reseller.phone, message);
     } catch (error) {
       console.error('Error al enviar credenciales:', error);
-      throw error;
+      throw error instanceof Error ? error : new Error('Error desconocido al enviar credenciales');
     }
   },
 
   async sendReminder(resellerId: string) {
     try {
-      // Obtener datos del revendedor
+      // Obtener datos del revendedor usando RPC para evitar restricciones de RLS en SELECT directo
       const { data: reseller, error: resellerError } = await supabase
-        .from('resellers')
-        .select('*')
-        .eq('id', resellerId)
-        .single();
+        .rpc('get_reseller_by_id', { reseller_id: resellerId });
 
-      if (resellerError) throw resellerError;
+      if (resellerError) throw new Error('No tienes permisos para leer los datos del revendedor o hubo un error de conexión.');
       if (!reseller) throw new Error('Revendedor no encontrado');
+      if (!reseller.phone) throw new Error('El revendedor no tiene teléfono registrado.');
+      if (!reseller.plan_end_date) throw new Error('El revendedor no tiene fecha de vencimiento.');
+      if (!reseller.full_name) throw new Error('El revendedor no tiene nombre registrado.');
 
       // Obtener plantilla de recordatorio
       const templates = await templateService.getAll();
@@ -73,17 +77,21 @@ export const resellerActionsService = {
 
       // Reemplazar variables en la plantilla
       const message = replaceVariables(reminderTemplate.content, {
-        cliente: reseller.full_name,
-        plataforma: reseller.plan_type,
+        cliente: reseller.full_name || '',
+        plataforma: reseller.plan_type || '',
         dias_restantes: `${daysLeft} días`,
         fecha_fin: endDate.toLocaleDateString()
       });
+
+      if (message.includes('{')) {
+        throw new Error('Faltan datos para completar el mensaje. Revisa los datos del revendedor.');
+      }
 
       // Abrir WhatsApp
       openWhatsApp(reseller.phone, message);
     } catch (error) {
       console.error('Error al enviar recordatorio:', error);
-      throw error;
+      throw error instanceof Error ? error : new Error('Error desconocido al enviar recordatorio');
     }
   },
 

@@ -92,9 +92,35 @@ export const templateService = {
 
   async update(id: string, updates: Partial<Template>) {
     try {
+      // Obtener la plantilla original
+      const { data: template, error: fetchError } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (fetchError) throw fetchError;
+      if (!template) throw new Error('Plantilla no encontrada');
+
+      // Protección: no permitir cambiar el nombre de plantillas prediseñadas
+      // Si en el futuro se requiere control por rol de usuario, agregar aquí la lógica de admin.
+      if (
+        (template.name === 'Mensaje de Bienvenida' || template.name === 'Recordatorio de Vencimiento') &&
+        updates.name && updates.name !== template.name
+      ) {
+        throw new Error('No se puede cambiar el nombre de las plantillas prediseñadas. Solo puedes editar el contenido.');
+      }
+
+      // Permitir actualizar el contenido y otros campos (menos el nombre si es prediseñada)
+      const safeUpdates = { ...updates };
+      if (
+        template.name === 'Mensaje de Bienvenida' || template.name === 'Recordatorio de Vencimiento'
+      ) {
+        delete safeUpdates.name;
+      }
+
       const { data, error } = await supabase
         .from('templates')
-        .update(updates)
+        .update(safeUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -122,9 +148,10 @@ export const templateService = {
       if (fetchError) throw fetchError;
       if (!template) throw new Error('Plantilla no encontrada');
 
-      // No permitir eliminar plantillas del sistema
+      // Protección reforzada: ningún revendedor puede eliminar plantillas prediseñadas.
+      // Si en el futuro se requiere control por rol de usuario, agregar aquí la lógica de admin.
       if (template.name === 'Mensaje de Bienvenida' || template.name === 'Recordatorio de Vencimiento') {
-        throw new Error('No se pueden eliminar las plantillas del sistema');
+        throw new Error('No se pueden eliminar las plantillas prediseñadas. Estas sirven como ejemplo y solo el administrador podría eliminarlas.');
       }
 
       // Si no es una plantilla del sistema, proceder con la eliminación

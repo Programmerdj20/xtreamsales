@@ -26,6 +26,7 @@ export interface ResellerData extends Omit<ResellerFormData, 'password'> {
 }
 
 export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerModalProps) {
+  const [showPassword, setShowPassword] = React.useState(false);
   // Función para calcular la fecha fin según el plan
   const calculateEndDate = (plan: string) => {
     const today = new Date();
@@ -191,15 +192,25 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
                 <label className="text-sm font-medium">
                   Contraseña
                 </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm"
-                  placeholder="Mínimo 6 caracteres"
-                  minLength={6}
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm pr-10"
+                    placeholder="Mínimo 6 caracteres"
+                    minLength={6}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? 'Ocultar' : 'Mostrar'}
+                  </button>
+                </div>
               </div>
             )}
 
