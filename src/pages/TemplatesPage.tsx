@@ -49,6 +49,7 @@ export default function TemplatesPage() {
                 await templateService.update(editingTemplate.id, {
                     name: editingTemplate.name,
                     content: editingTemplate.content,
+                    category: editingTemplate.category,
                 });
                 toast.success("Plantilla actualizada exitosamente");
             } else {
