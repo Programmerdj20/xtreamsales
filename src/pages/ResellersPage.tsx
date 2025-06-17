@@ -349,7 +349,7 @@ const ResellersPage = () => {
                                     <tr key={reseller.id} className="border-b border-border/10">
                                         <td className="p-4">{reseller.full_name}</td>
                                         <td className="p-4">{reseller.email}</td>
-                                        <td className="p-4">{reseller.password}</td>
+                                        <td className="p-4">{reseller.password ? reseller.password : '-'}</td>
                                         <td className="p-4">{phoneNumber}</td>
                                         <td className="p-4">{reseller.plan_type}</td>
                                         <td className="p-4">{reseller.plan_end_date ? new Date(reseller.plan_end_date).toLocaleDateString() : ''}</td>

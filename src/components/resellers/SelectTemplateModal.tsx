@@ -1,63 +1,134 @@
-import React, { useEffect, useState } from 'react';
-import { templateService } from '../../services/templates';
-import type { Template } from '../../types/template.types';
-import { Button } from '../ui/button';
+import React, { useEffect, useState } from "react";
+import { templateService } from "../../services/templates";
+import type { Template, TemplateCategory } from "../../types/template.types";
+import { Button } from "../ui/button";
 
 interface SelectTemplateModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSelect: (template: Template) => void;
-  type: 'credenciales' | 'recordatorio';
+    isOpen: boolean;
+    onClose: () => void;
+    onSelect: (template: Template) => void;
+    type: "credenciales" | "recordatorio";
 }
 
-export function SelectTemplateModal({ isOpen, onClose, onSelect, type }: SelectTemplateModalProps) {
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [loading, setLoading] = useState(true);
+export function SelectTemplateModal({
+    isOpen,
+    onClose,
+    onSelect,
+    type,
+}: SelectTemplateModalProps) {
+    const [templates, setTemplates] = useState<Template[]>([]);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setLoading(true);
-    templateService.getAll()
-      .then((data) => {
-        setTemplates(
-          data.filter(t =>
-            type === 'credenciales'
-              ? t.name.toLowerCase().includes('bienvenida')
-              : t.name.toLowerCase().includes('recordatorio')
-          )
-        );
-      })
-      .finally(() => setLoading(false));
-  }, [isOpen, type]);
+    useEffect(() => {
+        if (!isOpen) return;
+        setLoading(true);
+        templateService
+            .getAll()
+            .then((data) => {
+                // Filtrar solo las plantillas de la categoría correspondiente
+                const filteredTemplates = data.filter(
+                    (template) => template.category === type
+                );
+                setTemplates(filteredTemplates);
+            })
+            .catch((error) => {
+                console.error("Error al obtener plantillas:", error);
+            })
+            .finally(() => setLoading(false));
+    }, [isOpen, type]);
 
-  if (!isOpen) return null;
+    if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-      <div className="bg-[#1a1d24] rounded-xl border border-border/10 shadow-xl p-6 w-full max-w-md">
-        <h2 className="text-lg font-semibold mb-4 text-foreground">
-          Selecciona plantilla de {type === 'credenciales' ? 'credenciales' : 'recordatorio'}
-        </h2>
-        {loading ? (
-          <div className="text-center py-8 text-muted-foreground">Cargando plantillas...</div>
-        ) : templates.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">No hay plantillas disponibles.</div>
-        ) : (
-          <ul className="space-y-2 mb-4">
-            {templates.map((tpl) => (
-              <li key={tpl.id} className="border border-border/10 rounded px-3 py-2 flex items-center justify-between bg-background/60">
-                <span className="font-medium text-sm text-foreground">{tpl.name}</span>
-                <Button size="sm" onClick={() => { onSelect(tpl); onClose(); }}>
-                  Usar
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="flex justify-end">
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+    return (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+            <div className="bg-[#1a1d24] rounded-xl border border-border/10 shadow-xl p-6 w-full max-w-md">
+                <h2 className="text-lg font-semibold mb-4 text-foreground">
+                    Selecciona plantilla de{" "}
+                    {type === "credenciales" ? "credenciales" : "recordatorio"}
+                </h2>
+                {loading ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                        Cargando plantillas...
+                    </div>
+                ) : templates.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                        No hay plantillas disponibles.
+                    </div>
+                ) : (
+                    <ul className="space-y-2 mb-4 max-h-96 overflow-y-auto">
+                        {templates.map((template) => (
+                            <TemplateItem
+                                key={template.id}
+                                template={template}
+                                onSelect={onSelect}
+                                onClose={onClose}
+                            />
+                        ))}
+                    </ul>
+                )}
+                <div className="flex justify-end">
+                    <Button variant="outline" onClick={onClose}>
+                        Cancelar
+                    </Button>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
+}
+
+// Componente para renderizar cada plantilla
+interface TemplateItemProps {
+    template: Template;
+    onSelect: (template: Template) => void;
+    onClose: () => void;
+}
+
+function TemplateItem({ template, onSelect, onClose }: TemplateItemProps) {
+    const getCategoryBadge = (category: TemplateCategory) => {
+        switch (category) {
+            case "credenciales":
+                return (
+                    <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full">
+                        Credenciales
+                    </span>
+                );
+            case "recordatorio":
+                return (
+                    <span className="px-2 py-0.5 text-xs bg-yellow-500/20 text-yellow-400 rounded-full">
+                        Recordatorio
+                    </span>
+                );
+            default:
+                return null;
+        }
+    };
+
+    const isDefault =
+        template.name === "Mensaje de Bienvenida" ||
+        template.name === "Recordatorio de Vencimiento";
+
+    return (
+        <li className="border border-border/10 rounded px-3 py-2 flex items-center justify-between bg-background/60">
+            <div className="flex items-center gap-2">
+                <span className="font-medium text-sm text-foreground">
+                    {template.name}
+                </span>
+                {getCategoryBadge(template.category)}
+                {isDefault && (
+                    <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">
+                        Por defecto
+                    </span>
+                )}
+            </div>
+            <Button
+                size="sm"
+                onClick={() => {
+                    onSelect(template);
+                    onClose();
+                }}
+            >
+                Usar
+            </Button>
+        </li>
+    );
 }
