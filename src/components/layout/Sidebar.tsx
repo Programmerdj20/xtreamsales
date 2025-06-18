@@ -18,45 +18,50 @@ const logoExpandedUrl = "/xstream_logo.png";
 const logoCollapsedUrl = "/xs_logo.png";
 
 const getMenuItems = (role: string | undefined) => {
-    const commonItems = [
-        {
-            title: "Dashboard",
-            path: role === "admin" ? "/dashboard" : "/reseller/dashboard",
-            icon: LayoutDashboard,
-        },
-        {
-            title: "Clientes",
-            path: role === "admin" ? "/clients" : "/reseller/clients",
-            icon: Users,
-        },
-        {
-            title: "Plantillas",
-            path: role === "admin" ? "/templates" : "/reseller/templates",
-            icon: MessageSquare,
-        },
-    ];
-
     if (role === "admin") {
         return [
-            ...commonItems,
+            {
+                title: "Dashboard",
+                path: "/dashboard",
+                icon: LayoutDashboard,
+            },
+            {
+                title: "Clientes",
+                path: "/clients",
+                icon: Users,
+            },
+            {
+                title: "Plantillas",
+                path: "/templates",
+                icon: MessageSquare,
+            },
             {
                 title: "Revendedores",
                 path: "/resellers",
                 icon: UserPlus,
             },
             {
-                title: "Gestiรณn de Usuarios",
+                title: "Gestión de Usuarios",
                 path: "/admin/users",
                 icon: UserCog,
             },
         ];
     } else if (role === "reseller") {
         return [
-            ...commonItems,
             {
-                title: "Configuraciรณn",
+                title: "Clientes",
+                path: "/reseller/clients",
+                icon: Users,
+            },
+            {
+                title: "Plantillas",
+                path: "/reseller/templates",
+                icon: MessageSquare,
+            },
+            {
+                title: "Configuración",
                 path: "/reseller/settings",
-                icon: Settings, // Usar el icono de Settings
+                icon: Settings,
             },
         ];
     }
@@ -80,17 +85,17 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
             localStorage.clear();
             sessionStorage.clear();
 
-            // Usar Supabase directamente para cerrar sesiรณn
+            // Usar Supabase directamente para cerrar sesión
             await supabase.auth.signOut();
 
-            // Esperar un momento para asegurar que la sesiรณn se cierre completamente
+            // Esperar un momento para asegurar que la sesión se cierre completamente
             setTimeout(() => {
-                // Forzar recarga completa de la pรกgina para limpiar cualquier estado
+                // Forzar recarga completa de la página para limpiar cualquier estado
                 window.location.replace("/login");
             }, 100);
         } catch (error) {
-            console.error("Error al cerrar sesiรณn:", error);
-            // En caso de error, intentar forzar la redirecciรณn de todos modos
+            console.error("Error al cerrar sesión:", error);
+            // En caso de error, intentar forzar la redirección de todos modos
             window.location.replace("/login");
         }
     };
@@ -144,7 +149,7 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
                     isCollapsed ? "flex justify-center" : ""
                 }`}
             >
-                {/* Botรณn de cerrar sesiรณn */}
+                {/* Botón de cerrar sesión */}
                 <div className="mt-auto">
                     <button
                         onClick={handleLogout}
@@ -157,17 +162,17 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
                         ) : (
                             <>
                                 <LogOut className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                                Cerrar Sesiรณn
+                                Cerrar Sesión
                             </>
                         )}
                     </button>
                 </div>
             </div>
 
-            {/* Botรณn para colapsar/expandir - Temporalmente aquรญ, luego lo moveremos al Header o MainLayout */}
+            {/* Botón para colapsar/expandir - Temporalmente aquí, luego lo moveremos al Header o MainLayout */}
             {/* <button 
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="p-2 text-muted-foreground hover:text-foreground absolute bottom-16 right-0 transform translate-x-1/2 bg-secondary rounded-full border border-border shadow-lg" // Oculto en md y mayores, ya que el control estarรก en el header
+        className="p-2 text-muted-foreground hover:text-foreground absolute bottom-16 right-0 transform translate-x-1/2 bg-secondary rounded-full border border-border shadow-lg" // Oculto en md y mayores, ya que el control estará en el header
       >
         {isCollapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
       </button> */}

@@ -15,6 +15,7 @@ import { replaceVariables, openWhatsApp } from "../services/reseller-actions";
 import { SelectTemplateModal } from "../components/resellers/SelectTemplateModal";
 import { Template } from "../types/template.types";
 import { supabase } from "../lib/supabase"; // Importar el cliente de Supabase
+import { resellerService } from "../services/resellers";
 
 // Función para obtener datos de resumen
 const getSummaryData = (clients: ClientData[]) => {
@@ -72,6 +73,8 @@ const ClientsPage = () => {
     );
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
+    const [ownerFilter, setOwnerFilter] = useState<string>("all");
+    const [resellers, setResellers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Para renovación de plan
@@ -113,13 +116,23 @@ const ClientsPage = () => {
         }
     };
 
+    // Cargar revendedores para el filtro
+    const fetchResellers = async () => {
+        try {
+            const data = await resellerService.getAll();
+            setResellers(data);
+        } catch (error) {
+            console.error("Error al cargar revendedores:", error);
+        }
+    };
+
     // Cargar clientes
     const fetchClients = async () => {
         setIsLoading(true);
         try {
             const data = await clientService.getAll();
             setClients(data);
-            filterClients(data, searchTerm, statusFilter);
+            filterClients(data, searchTerm, statusFilter, ownerFilter);
         } catch (error) {
             console.error("Error al cargar clientes:", error);
             toast.error("Error al cargar los clientes");
@@ -128,11 +141,12 @@ const ClientsPage = () => {
         }
     };
 
-    // Función para filtrar clientes según búsqueda y estado
+    // Función para filtrar clientes según búsqueda, estado y propietario
     const filterClients = (
         clientsList: ClientData[],
         search: string,
-        status: string
+        status: string,
+        owner: string
     ) => {
         const filtered = clientsList.filter((client) => {
             // Filtro por búsqueda
@@ -153,7 +167,13 @@ const ClientsPage = () => {
             // Filtro por estado
             const matchesStatus = status === "all" || client.status === status;
 
-            return matchesSearch && matchesStatus;
+            // Filtro por propietario
+            const matchesOwner =
+                owner === "all" ||
+                (owner === "admin" && !client.owner_id) ||
+                client.owner_id === owner;
+
+            return matchesSearch && matchesStatus && matchesOwner;
         });
 
         setFilteredClients(filtered);
@@ -162,6 +182,7 @@ const ClientsPage = () => {
     // Efecto para cargar datos iniciales
     useEffect(() => {
         fetchClients();
+        fetchResellers();
     }, []);
 
     // Efecto para la suscripción a cambios en tiempo real en la tabla de clientes
@@ -206,8 +227,8 @@ const ClientsPage = () => {
 
     // Efecto para filtrar cuando cambian los criterios
     useEffect(() => {
-        filterClients(clients, searchTerm, statusFilter);
-    }, [clients, searchTerm, statusFilter]);
+        filterClients(clients, searchTerm, statusFilter, ownerFilter);
+    }, [clients, searchTerm, statusFilter, ownerFilter]);
 
     // Handler para guardar cliente
     const handleSaveClient = async (data: ClientFormData) => {
@@ -399,6 +420,19 @@ const ClientsPage = () => {
                         <option value="active">Activos</option>
                         <option value="expiring">Por vencer</option>
                         <option value="expired">Vencidos</option>
+                    </select>
+                    <select
+                        className="px-4 py-2 bg-background/50 border border-border/10 rounded-lg text-sm"
+                        value={ownerFilter}
+                        onChange={(e) => setOwnerFilter(e.target.value)}
+                    >
+                        <option value="all">Todos los clientes</option>
+                        <option value="admin">Mis clientes</option>
+                        {resellers.map((reseller) => (
+                            <option key={reseller.id} value={reseller.id}>
+                                Clientes de {reseller.full_name}
+                            </option>
+                        ))}
                     </select>
                 </div>
 

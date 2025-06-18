@@ -114,14 +114,16 @@ const ResellerClientsPage = () => {
     const fetchClients = async () => {
         setIsLoading(true);
         try {
-            // Asumiendo que clientService.getAll() puede filtrar por reseller_id
-            // O que necesitas una nueva función como clientService.getClientsByReseller(user.id)
-            const data = await clientService.getAll(); // Esto debería ser adaptado para filtrar por revendedor
-            const resellerClients = data.filter(
-                (client) => client.reseller_id === user?.id
-            ); // Filtrar en el frontend por ahora
-            setClients(resellerClients);
-            filterClients(resellerClients, searchTerm, statusFilter);
+            if (!user?.id) {
+                setClients([]);
+                setFilteredClients([]);
+                return;
+            }
+
+            // Usar la nueva función que filtra por owner_id
+            const data = await clientService.getClientsByOwner(user.id);
+            setClients(data);
+            filterClients(data, searchTerm, statusFilter);
         } catch (error) {
             console.error("Error al cargar clientes del revendedor:", error);
             toast.error("Error al cargar los clientes del revendedor");
@@ -179,7 +181,7 @@ const ResellerClientsPage = () => {
                     event: "*",
                     schema: "public",
                     table: "clients",
-                    filter: `reseller_id=eq.${user.id}`,
+                    filter: `owner_id=eq.${user.id}`,
                 }, // Escuchar solo cambios para este revendedor
                 (payload) => {
                     console.log(
@@ -237,8 +239,8 @@ const ResellerClientsPage = () => {
                 await clientService.update(selectedClient.id, data);
                 toast.success("Cliente actualizado correctamente");
             } else {
-                // Crear nuevo cliente, asignando el reseller_id
-                await clientService.create({ ...data, reseller_id: user.id });
+                // Crear nuevo cliente (el owner_id se asigna automáticamente)
+                await clientService.create(data);
                 toast.success("Cliente creado correctamente");
             }
             setIsModalOpen(false);

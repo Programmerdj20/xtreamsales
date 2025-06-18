@@ -30,8 +30,8 @@ function AppContent() {
                             user.role === "admin" ? (
                                 <Navigate to="/dashboard" replace />
                             ) : (
-                                <Navigate to="/reseller/dashboard" replace />
-                            ) // Redirigir a dashboard de revendedor
+                                <Navigate to="/reseller/clients" replace />
+                            ) // Redirigir a clientes de revendedor
                         ) : (
                             <LoginPage />
                         )
@@ -75,7 +75,7 @@ function AppContent() {
                     </Route>
                 </Route>
 
-                {/* Redirigir / a /dashboard (para admin) o /reseller/dashboard (para reseller) */}
+                {/* Redirigir / a /dashboard (para admin) o /reseller/clients (para reseller) */}
                 <Route
                     path="/"
                     element={
@@ -83,7 +83,7 @@ function AppContent() {
                             user.role === "admin" ? (
                                 <Navigate to="/dashboard" replace />
                             ) : (
-                                <Navigate to="/reseller/dashboard" replace />
+                                <Navigate to="/reseller/clients" replace />
                             )
                         ) : (
                             <Navigate to="/login" replace />
