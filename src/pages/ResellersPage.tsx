@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Users,
     UserCheck,
@@ -10,19 +10,51 @@ import {
 import {
     ResellerModal,
     type ResellerFormData,
+    // ResellerData is used for ResellerModal prop type, keep it if ResellerModal isn't updated
     type ResellerData,
 } from "../components/modals/ResellerModal";
 import { RenewPlanModal } from "../components/modals/RenewPlanModal";
 import { Button } from "../components/ui/button";
-import { useState, useEffect } from "react";
-import { resellerService } from "../services/resellers";
+import resellerService from "../services/resellers"; // Changed to default import
 import { toast } from "sonner";
 import { resellerActionsService, replaceVariables, openWhatsApp } from "../services/reseller-actions";
 import { ResellerActions } from "../components/resellers/ResellerActions";
 import { SelectTemplateModal } from "../components/resellers/SelectTemplateModal";
 import { supabase } from "../lib/supabase";
+import { Reseller } from "../types/database.types"; // Import Reseller type
 
-const getSummaryData = (resellers: any[]) => {
+// Helper function to get the CSS class for the status badge
+const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+        case "active":
+            return "bg-green-500/20 text-green-500";
+        case "pending":
+            return "bg-yellow-500/20 text-yellow-500";
+        case "inactive":
+        case "expired":
+            return "bg-red-500/20 text-red-500";
+        default:
+            return "bg-gray-500/20 text-gray-500";
+    }
+};
+
+// Helper function to get the status label in Spanish
+const getStatusLabel = (status: string) => {
+    switch (status) {
+        case "active":
+            return "Activo";
+        case "pending":
+            return "Pendiente";
+        case "inactive":
+            return "Inactivo";
+        case "expired":
+            return "Vencido";
+        default:
+            return "Desconocido";
+    }
+};
+
+const getSummaryData = (resellers: Reseller[]) => {
     const today = new Date();
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(today.getDate() + 30);
@@ -30,6 +62,7 @@ const getSummaryData = (resellers: any[]) => {
     const total = resellers.length;
     const active = resellers.filter((r) => r.status === "active").length;
     const expiringSoon = resellers.filter((r) => {
+        if (!r.plan_end_date) return false;
         const endDate = new Date(r.plan_end_date);
         return (
             endDate > today &&
@@ -39,7 +72,7 @@ const getSummaryData = (resellers: any[]) => {
     }).length;
     const expired = resellers.filter((r) => r.status === "expired").length;
     const demo = resellers.filter((r) =>
-        r.plan_type.toLowerCase().includes("demo")
+        r.plan_type?.toLowerCase().includes("demo")
     ).length;
 
     return [
@@ -78,95 +111,62 @@ const getSummaryData = (resellers: any[]) => {
 
 const ResellersPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [resellers, setResellers] = useState<any[]>([]);
-    const [filteredResellers, setFilteredResellers] = useState<any[]>([]);
+    const [resellers, setResellers] = useState<Reseller[]>([]);
+    const [filteredResellers, setFilteredResellers] = useState<Reseller[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedReseller, setSelectedReseller] = useState<any | null>(null);
+    const [selectedReseller, setSelectedReseller] = useState<Reseller | null>(null);
     const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
-    const [resellerToRenew, setResellerToRenew] = useState<any | null>(null);
+    const [resellerToRenew, setResellerToRenew] = useState<Reseller | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
 
     // Para selección de plantilla
     const [isSelectTemplateOpen, setIsSelectTemplateOpen] = useState(false);
     const [templateTypeToSend, setTemplateTypeToSend] = useState<null | 'credenciales' | 'recordatorio'>(null);
-    const [resellerToSend, setResellerToSend] = useState<any | null>(null);
+    const [resellerToSend, setResellerToSend] = useState<Reseller | null>(null);
 
-    // Función para obtener la clase CSS del badge de estado
-    const getStatusBadgeClass = (status: string) => {
-        switch (status) {
-            case "active":
-                return "bg-green-500/20 text-green-500";
-            case "pending":
-                return "bg-yellow-500/20 text-yellow-500";
-            case "inactive":
-            case "expired":
-                return "bg-red-500/20 text-red-500";
-            default:
-                return "bg-gray-500/20 text-gray-500";
-        }
-    };
+    const summaryData = useMemo(() => getSummaryData(resellers), [resellers]);
 
-    // Función para obtener la etiqueta de estado en español
-    const getStatusLabel = (status: string) => {
-        switch (status) {
-            case "active":
-                return "Activo";
-            case "pending":
-                return "Pendiente";
-            case "inactive":
-                return "Inactivo";
-            case "expired":
-                return "Vencido";
-            default:
-                return status;
-        }
-    };
-
-    const fetchResellers = async () => {
+    const fetchResellers = useCallback(async () => {
         try {
             setIsLoading(true);
             const data = await resellerService.getAll();
-            setResellers(data);
+            setResellers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error("Error fetching resellers:", error);
             toast.error("Error al cargar los revendedores");
+            setResellers([]); // Ensure resellers is an array on error
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    // Función para filtrar revendedores según búsqueda y estado
-    const filterResellers = () => {
-        let filtered = [...resellers];
+    const filterResellers = useCallback(() => {
+        let tempResellers = [...resellers];
 
         // Filtrar por término de búsqueda
         if (searchTerm) {
-            const searchLower = searchTerm.toLowerCase();
-            filtered = filtered.filter(
-                (reseller) =>
-                    reseller.full_name?.toLowerCase().includes(searchLower) ||
-                    reseller.email?.toLowerCase().includes(searchLower) ||
-                    reseller.phone?.toLowerCase().includes(searchLower) ||
-                    reseller.plan_type?.toLowerCase().includes(searchLower)
+            tempResellers = tempResellers.filter(
+                (r) =>
+                    r.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    r.email?.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
 
         // Filtrar por estado
         if (statusFilter !== "all") {
-            filtered = filtered.filter(
-                (reseller) => reseller.status === statusFilter
-            );
+            tempResellers = tempResellers.filter((r) => r.status === statusFilter);
         }
 
-        setFilteredResellers(filtered);
-    };
+        setFilteredResellers(tempResellers);
+    }, [resellers, searchTerm, statusFilter]);
 
-    // Efecto para cargar revendedores al inicio
+    // Cargar datos iniciales y configurar escucha de cambios
+    const fetchData = useCallback(async () => {
+        await fetchResellers();
+    }, [fetchResellers]);
+
     useEffect(() => {
-        const fetchData = async () => {
-            await fetchResellers();
-        };
         fetchData();
     }, []);
 
@@ -175,89 +175,74 @@ const ResellersPage = () => {
         filterResellers();
     }, [resellers, searchTerm, statusFilter]);
 
-    const loadResellers = async () => {
-        console.log("DEPURACIÓN - Cargando revendedores con loadResellers...");
+    const handleDeleteReseller = useCallback(async (resellerId: string) => {
         try {
-            // Forzar una recarga completa desde la base de datos
-            const data = await resellerService.getAll(true); // Pasar true para forzar recarga
-            console.log("DEPURACIÓN - Revendedores cargados:", data);
-            
-            // Actualizar el estado con los nuevos datos
-            setResellers(data);
-            
-            // Forzar una actualización de los revendedores filtrados
-            filterResellers();
-            
-            return data; // Devolver los datos para uso en otras funciones
+            await resellerService.delete(resellerId);
+            toast.success("Revendedor eliminado exitosamente");
+            fetchResellers(); // Recargar la lista
         } catch (error) {
-            console.error("Error loading resellers:", error);
-            toast.error("Error al cargar revendedores");
+            console.error("Error deleting reseller:", error);
+            const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+            toast.error(`Error al eliminar el revendedor: ${errorMessage}`);
         }
-    };
+    }, [fetchResellers]);
 
-    const handleSaveReseller = async (data: ResellerFormData) => {
+    const handleSendCredentials = useCallback((reseller: Reseller) => {
+        setResellerToSend(reseller);
+        setTemplateTypeToSend('credenciales');
+        setIsSelectTemplateOpen(true);
+    }, []);
+
+    const handleSendReminder = useCallback((reseller: Reseller) => {
+        setResellerToSend(reseller);
+        setTemplateTypeToSend('recordatorio');
+        setIsSelectTemplateOpen(true);
+    }, []);
+
+    const handleSaveReseller = useCallback(async (data: ResellerFormData) => {
         try {
             if (selectedReseller) {
-                // Modo edición
-                console.log('DEPURACIÓN - Datos a actualizar:', {
-                    id: selectedReseller.id,
-                    fullName: data.fullName,
-                    phone: data.phone,
-                    plan: data.plan,
-                    endDate: data.endDate
-                });
-                
-                // Asegurarse de que el teléfono tenga el formato correcto (con prefijo +)
-                let formattedPhone = data.phone || '';
-                if (formattedPhone && !formattedPhone.startsWith('+')) {
-                    formattedPhone = '+' + formattedPhone;
-                }
-                
-                console.log('DEPURACIÓN - Teléfono formateado para guardar:', formattedPhone);
-                console.log('DEPURACIÓN - ID del revendedor:', selectedReseller.id);
-                
-                // Usar el servicio de revendedores para actualizar los datos
-                const updateResult = await resellerService.update(selectedReseller.id, {
+                // Actualizar revendedor existente
+                const updatePayload: Partial<Reseller> = {
                     full_name: data.fullName,
-                    phone: formattedPhone,
-                    plan_type: data.plan || '1 Mes',
-                    plan_end_date: data.endDate || new Date().toISOString()
-                });
-                
-                console.log('DEPURACIÓN - Resultado de actualizar revendedor:', updateResult);
-                
+                    email: data.email,
+                    phone: data.phone,
+                    plan_type: data.plan,
+                    plan_end_date: data.endDate, // Ensure this is ISO string if service expects that
+                };
+                await resellerService.update(selectedReseller.id, updatePayload);
                 toast.success("Revendedor actualizado exitosamente");
-                
-                // Cerrar el modal
-                setIsModalOpen(false);
-                setSelectedReseller(null);
-                
-                // Forzar una recarga completa de los datos usando el servicio
-                await loadResellers();
             } else {
-                // Modo creación
-                console.log('Creando nuevo revendedor');
+                // Crear nuevo revendedor
+                // Note: password from ResellerFormData is not used by createReseller service method
                 await resellerService.createReseller({
                     full_name: data.fullName,
                     email: data.email,
                     phone: data.phone,
                     plan_type: data.plan,
-                    plan_end_date: data.endDate,
+                    plan_end_date: data.endDate, // Ensure this is ISO string
                 });
-                toast.success("Revendedor creado exitosamente");
+                toast.success("Revendedor agregado exitosamente");
             }
             setIsModalOpen(false);
             setSelectedReseller(null);
-            loadResellers(); // Recargar la lista después de crear/editar
+            fetchResellers(); // Recargar la lista
         } catch (error) {
-            console.error("Error al procesar revendedor:", error);
-            toast.error(
-                error instanceof Error
-                    ? error.message
-                    : "Error al procesar el revendedor"
-            );
+            console.error("Error saving reseller:", error);
+            const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+            toast.error(`Error al guardar el revendedor: ${errorMessage}`);
         }
-    };
+    }, [selectedReseller, fetchResellers]);
+
+    const handleEditReseller = useCallback((reseller: Reseller) => {
+        setSelectedReseller(reseller);
+        setIsModalOpen(true);
+    }, []);
+
+    const handleRenewReseller = useCallback((reseller: Reseller) => {
+        setResellerToRenew(reseller);
+        setIsRenewModalOpen(true);
+    }, []);
 
     return (
         <div>
@@ -266,7 +251,7 @@ const ResellersPage = () => {
             </h1>
             {/* Tarjetas de resumen */}
             <div className="grid grid-cols-5 gap-4 mb-6">
-                {getSummaryData(resellers).map((item, index) => (
+                {summaryData.map((item, index) => (
                     <div
                         key={index}
                         className="bg-[#1a1d24] p-4 rounded-xl border border-border/10 flex items-center justify-between"
@@ -316,7 +301,6 @@ const ResellersPage = () => {
                         <tr>
                             <th className="p-4 font-medium">Nombre</th>
                             <th className="p-4 font-medium">Email</th>
-                            <th className="p-4 font-medium">Contraseña</th>
                             <th className="p-4 font-medium">Teléfono</th>
                             <th className="p-4 font-medium">Plan</th>
                             <th className="p-4 font-medium">Fin Suscripción</th>
@@ -342,9 +326,7 @@ const ResellersPage = () => {
                                 </td>
                             </tr>
                         ) : (
-                            filteredResellers.map((reseller: any, index) => {
-                                const phoneNumber = reseller.phone || '';
-                                const phoneCountry = reseller.phone_country || '';
+                            filteredResellers.map((reseller: Reseller, index) => {
                                 return (
                                     <tr 
                                       key={reseller.id} 
@@ -352,56 +334,22 @@ const ResellersPage = () => {
                                     >
                                         <td className="p-4">{reseller.full_name}</td>
                                         <td className="p-4">{reseller.email}</td>
-                                        <td className="p-4">{reseller.password ? reseller.password : '-'}</td>
-                                        <td className="p-4">{phoneNumber}</td>
+                                        <td className="p-4">{reseller.phone}</td>
                                         <td className="p-4">{reseller.plan_type}</td>
                                         <td className="p-4">{reseller.plan_end_date ? new Date(reseller.plan_end_date).toLocaleDateString() : ''}</td>
-                                        <td className="p-4">{reseller.clients_count ?? '-'}</td>
+                                        <td className="p-4">{(reseller as any).clients_count ?? '-'}</td>
                                         <td className="p-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClass(reseller.status)}`}>
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(reseller.status)}`}>
                                                 {getStatusLabel(reseller.status)}
                                             </span>
                                         </td>
                                         <td className="p-4 text-right">
                                             <ResellerActions
-                                                onEdit={() => {
-                                                    setSelectedReseller({
-                                                        id: reseller.id,
-                                                        fullName: reseller.full_name,
-                                                        email: reseller.email,
-                                                        phone: phoneNumber,
-                                                        phoneCountry: phoneCountry,
-                                                        plan: reseller.plan_type || '1 Mes',
-                                                        endDate: reseller.plan_end_date,
-                                                        status: reseller.status,
-                                                    });
-                                                    setIsModalOpen(true);
-                                                }}
-                                                onRenew={() => {
-                                                    setResellerToRenew(reseller);
-                                                    setIsRenewModalOpen(true);
-                                                }}
-                                                onSendCredentials={() => {
-                                                    setResellerToSend(reseller);
-                                                    setTemplateTypeToSend('credenciales');
-                                                    setIsSelectTemplateOpen(true);
-                                                }}
-                                                onSendReminder={() => {
-                                                    setResellerToSend(reseller);
-                                                    setTemplateTypeToSend('recordatorio');
-                                                    setIsSelectTemplateOpen(true);
-                                                }}
-                                                onDelete={async () => {
-                                                    if (window.confirm("¿Estás seguro de que deseas eliminar este revendedor?")) {
-                                                        try {
-                                                            await resellerService.delete(reseller.id);
-                                                            toast.success("Revendedor eliminado exitosamente");
-                                                            fetchResellers();
-                                                        } catch (error) {
-                                                            toast.error("Error al eliminar el revendedor");
-                                                        }
-                                                    }
-                                                }}
+                                                onEdit={() => handleEditReseller(reseller)}
+                                                onRenew={() => handleRenewReseller(reseller)}
+                                                onSendCredentials={() => handleSendCredentials(reseller)}
+                                                onSendReminder={() => handleSendReminder(reseller)}
+                                                onDelete={() => handleDeleteReseller(reseller.id)}
                                             />
                                         </td>
                                     </tr>
@@ -419,42 +367,41 @@ const ResellersPage = () => {
                 onClose={() => setIsSelectTemplateOpen(false)}
                 onSelect={async (template) => {
                     if (!resellerToSend) return;
-                    try {
-                        const { data: reseller, error: resellerError } = await supabase.rpc('get_reseller_by_id', { reseller_id: resellerToSend.id });
-                        if (resellerError) throw new Error('No tienes permisos para leer los datos del revendedor o hubo un error de conexión.');
-                        if (!reseller) throw new Error('Revendedor no encontrado');
-                        let message = '';
-                        if (templateTypeToSend === 'credenciales') {
-                            message = replaceVariables(template.content, {
-                                cliente: reseller.full_name || '',
-                                plataforma: reseller.plan_type || '',
-                                usuario: reseller.email || '',
-                                contraseña: reseller.password || '',
-                                fecha_fin: reseller.plan_end_date ? new Date(reseller.plan_end_date).toLocaleDateString() : ''
-                            });
-                        } else {
-                            const endDate = new Date(reseller.plan_end_date);
-                            const today = new Date();
-                            const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                            message = replaceVariables(template.content, {
-                                cliente: reseller.full_name || '',
-                                plataforma: reseller.plan_type || '',
-                                dias_restantes: `${daysLeft} días`,
-                                fecha_fin: endDate.toLocaleDateString()
-                            });
-                        }
-                        if (message.includes('{')) {
-                            throw new Error('Faltan datos para completar el mensaje. Revisa los datos del revendedor.');
-                        }
-                        openWhatsApp(reseller.phone, message);
-                        toast.success("Mensaje enviado por WhatsApp");
-                    } catch (error) {
-                        toast.error("Error al enviar el mensaje: " + (error instanceof Error ? error.message : 'Error desconocido'));
-                    } finally {
-                        setIsSelectTemplateOpen(false);
-                        setResellerToSend(null);
-                        setTemplateTypeToSend(null);
+                    // Fetch up-to-date reseller data using the service layer for consistency
+                    const currentResellerData: Reseller | null = await resellerService.getById(resellerToSend.id);
+
+                    if (!currentResellerData) throw new Error('Revendedor no encontrado o error al obtener datos.');
+                    
+                    let message = '';
+                    if (templateTypeToSend === 'credenciales') {
+                        // IMPORTANT: The 'Reseller' type does not include 'password'. 
+                        // If passwords are required for this template, the Reseller type and data source need to be updated.
+                        // For now, 'contraseña' will be empty or rely on data not defined in the Reseller type.
+                        // This might be a bug or an incomplete feature.
+                        message = replaceVariables(template.content, {
+                            cliente: currentResellerData.full_name || '',
+                            plataforma: currentResellerData.plan_type || '',
+                            usuario: currentResellerData.email || '',
+                            contraseña: (currentResellerData as any).password || '', // Unsafe access, password not in Reseller type
+                            fecha_fin: currentResellerData.plan_end_date ? new Date(currentResellerData.plan_end_date).toLocaleDateString() : ''
+                        });
+                    } else {
+                        if (!currentResellerData.plan_end_date) throw new Error('Fecha de fin de plan no disponible.');
+                        const endDate = new Date(currentResellerData.plan_end_date);
+                        const today = new Date();
+                        const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        message = replaceVariables(template.content, {
+                            cliente: currentResellerData.full_name || '',
+                            plataforma: currentResellerData.plan_type || '',
+                            dias_restantes: `${daysLeft} días`,
+                            fecha_fin: endDate.toLocaleDateString()
+                        });
                     }
+                    if (message.includes('{')) {
+                        throw new Error('Faltan datos para completar el mensaje. Revisa los datos del revendedor.');
+                    }
+                    openWhatsApp(resellerToSend.phone, message);
+                    toast.success("Mensaje enviado por WhatsApp");
                 }}
             />
             {/* Modal de Nuevo Revendedor */}
@@ -465,7 +412,16 @@ const ResellersPage = () => {
                     setSelectedReseller(null);
                 }}
                 onSubmit={handleSaveReseller}
-                reseller={selectedReseller as ResellerData}
+                reseller={selectedReseller ? {
+                    id: selectedReseller.id,
+                    status: selectedReseller.status,
+                    fullName: selectedReseller.full_name,
+                    email: selectedReseller.email,
+                    phone: selectedReseller.phone,
+                    // phoneCountry is not in Reseller type; ResellerModal will use its default if needed
+                    plan: selectedReseller.plan_type,
+                    endDate: selectedReseller.plan_end_date,
+                } : undefined}
             />
             {/* Modal de Renovación de Plan */}
             <RenewPlanModal

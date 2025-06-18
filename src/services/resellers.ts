@@ -22,20 +22,48 @@ export const resellerService = {
       const userId = uuidv4();
 
       // 1. Crear perfil en profiles
-      const { data: profileResult, error: profileError }: { data: { success: boolean; message?: string } | null; error: { message?: string } | null } = await supabase.rpc('create_user_profile', {
-        user_id: userId,
-        user_email: email,
-        user_role: 'reseller',
-        user_status: 'active',
-        user_full_name: full_name
+      // Definimos un tipo más preciso para la respuesta esperada de create_user_profile
+      type CreateUserProfileSuccessResponse = { success: true; message?: string; id: string };
+      type CreateUserProfileErrorResponse = { success: false; message?: string };
+      type CreateUserProfileResponse = CreateUserProfileSuccessResponse | CreateUserProfileErrorResponse;
+
+      const { data: profileResult, error: profileError }: { data: CreateUserProfileResponse | null; error: { message?: string } | null } = await supabase.rpc('create_user_profile', {
+        p_user_id: userId,
+        p_user_email: email,
+        p_user_role: 'reseller',
+        p_user_status: 'active',
+        p_user_full_name: full_name,
+        p_user_phone: phone || ''
       });
-      if (profileError || !(profileResult && profileResult.success)) {
-        throw new Error((profileResult && profileResult.message) || (profileError && profileError.message) || 'Error creando perfil');
+
+      if (profileError) {
+        console.error('Error en RPC create_user_profile (profileError):', profileError);
+        throw new Error(profileError.message || 'Error en la llamada RPC para crear perfil');
+      }
+
+      if (!profileResult) {
+        console.error('Respuesta nula de RPC create_user_profile');
+        throw new Error('Respuesta nula al crear perfil');
+      }
+
+      if (!profileResult.success) {
+        console.error('Fallo en RPC create_user_profile (profileResult.success false):', profileResult.message);
+        throw new Error(profileResult.message || 'Error creando perfil (fallo reportado por RPC)');
+      }
+
+      // Ahora TypeScript sabe que si profileResult.success es true, profileResult es de tipo CreateUserProfileSuccessResponse y tiene 'id'
+      const finalUserIdForReseller = profileResult.id;
+
+      if (!finalUserIdForReseller) {
+        // Esta comprobación es redundante si el tipo es correcto y la RPC siempre devuelve 'id' en caso de éxito,
+        // pero se mantiene por seguridad por si la RPC no cumpliera estrictamente el contrato.
+        console.error('ID de usuario final no encontrado en la respuesta de create_user_profile a pesar de success:true');
+        throw new Error('No se pudo obtener el ID de usuario final del perfil para crear el revendedor.');
       }
 
       // 2. Crear registro en resellers
       const { data: resellerResult, error: resellerError }: { data: { success: boolean; message?: string } | null; error: { message?: string } | null } = await supabase.rpc('create_reseller', {
-        user_id: userId,
+        user_id: finalUserIdForReseller, // Usar el ID del resultado de create_user_profile
         user_email: email,
         user_full_name: full_name,
         user_phone: phone || '',
@@ -56,6 +84,55 @@ export const resellerService = {
     // Obtener todos los revendedores
     async getAll(forceReload = false) {
         console.log('DEPURACIÓN - Fetching resellers... forceReload:', forceReload);
+
+        try {
+            // Obtener datos de la tabla resellers usando RPC
+            console.log('Obteniendo datos de resellers...');
+            const { data: resellersData, error: resellersError }: { data: Reseller[] | null; error: { message?: string } | null } = await supabase
+                .rpc('get_all_resellers');
+
+            if (resellersError || !Array.isArray(resellersData)) {
+                console.error('Error al obtener resellers con RPC:', resellersError);
+                return [];
+            }
+
+            // Obtener todos los perfiles con rol 'reseller'
+            console.log('Obteniendo perfiles con rol reseller...');
+            const { data: profilesData, error: profilesError }: { data: (Reseller & { role?: string })[] | null; error: { message?: string } | null } = await supabase
+                .rpc('get_all_profiles');
+
+            if (profilesError || !Array.isArray(profilesData)) {
+                console.error('Error al obtener perfiles con RPC:', profilesError);
+                return [];
+            }
+
+            // Filtrar solo los perfiles que tienen registro en resellers
+            const resellerProfiles = profilesData.filter((p) =>
+                p && p.role === 'reseller' && resellersData.some(r => r.id === p.id)
+            );
+            console.log(`Encontrados ${resellerProfiles.length} perfiles de revendedores`);
+
+            // Combinar datos de perfiles y resellers
+            const result = resellerProfiles.map(profile => {
+                const resellerData = resellersData.find(r =>
+                    (r.id === profile.id || r.user_id === profile.id)
+                );
+                if (resellerData) {
+                    return {
+                        ...profile,
+                        ...resellerData
+                    };
+                }
+                return profile;
+            });
+
+            return result;
+        } catch (error) {
+            console.error("Error inesperado al obtener revendedores:", error);
+            return [];
+        }
+        // Removed erroneous closing brace here
+        console.log('DEPURACIÓN - Fetching resellers... forceReload:', forceReload);
         
         try {
             // Primero, obtener todos los perfiles con rol 'reseller'
@@ -69,7 +146,10 @@ export const resellerService = {
             }
             
             // Filtrar solo los perfiles con rol 'reseller'
-            const resellerProfiles = profilesData.filter((p) => p && p.role === 'reseller');
+            const resellerProfiles = profilesData.filter((p) => 
+                p && p.role === 'reseller' && 
+                resellersData?.some(r => r.id === p.id)
+            );
             console.log(`Encontrados ${resellerProfiles.length} perfiles de revendedores`);
             
             // Obtener datos de la tabla resellers usando RPC
