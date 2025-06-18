@@ -98,8 +98,11 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({ clients, isLoading, 
           </tr>
         </thead>
         <tbody>
-          {clients.map((client) => (
-            <tr key={client.id} className="border-b border-border/10 hover:bg-muted/5 transition-colors">
+          {clients.map((client, index) => (
+            <tr 
+              key={client.id} 
+              className={`border-b border-border/10 hover:bg-muted/10 transition-colors ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/5'}`}
+            >
               <td className="p-3 font-medium">{client.cliente}</td>
               <td className="p-3">{client.whatsapp}</td>
               <td className="p-3">{client.plataforma}</td>

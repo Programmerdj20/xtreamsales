@@ -312,9 +312,9 @@ const ResellersPage = () => {
             {/* Tabla de Revendedores */}
             <div className="overflow-x-auto bg-[#191c23] rounded-xl border border-border/10">
                 <table className="w-full text-sm">
-                    <thead className="text-left border-b border-border/10">
+                    <thead className="bg-muted/50 border-b border-border/10 text-left">
                         <tr>
-                            <th className="p-4 font-medium">Nombre / Empresa</th>
+                            <th className="p-4 font-medium">Nombre</th>
                             <th className="p-4 font-medium">Email</th>
                             <th className="p-4 font-medium">Contraseña</th>
                             <th className="p-4 font-medium">Teléfono</th>
@@ -342,11 +342,14 @@ const ResellersPage = () => {
                                 </td>
                             </tr>
                         ) : (
-                            filteredResellers.map((reseller: any) => {
+                            filteredResellers.map((reseller: any, index) => {
                                 const phoneNumber = reseller.phone || '';
                                 const phoneCountry = reseller.phone_country || '';
                                 return (
-                                    <tr key={reseller.id} className="border-b border-border/10">
+                                    <tr 
+                                      key={reseller.id} 
+                                      className={`border-b border-border/10 hover:bg-muted/10 transition-colors ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/5'}`}
+                                    >
                                         <td className="p-4">{reseller.full_name}</td>
                                         <td className="p-4">{reseller.email}</td>
                                         <td className="p-4">{reseller.password ? reseller.password : '-'}</td>
