@@ -75,10 +75,10 @@ export const authService = {
             // 2. Usar la función RPC create_user_profile para crear el perfil
             try {
                 console.log(
-                    "Usando RPC create_user_profile para crear el perfil..."
+                    "Usando RPC create_user_profile_v2 para crear el perfil..."
                 );
                 const { data: profileResult, error: profileError } =
-                    await supabase.rpc("create_user_profile", {
+                    await supabase.rpc("create_user_profile_v2", {
                         user_id: authData.user.id,
                         user_email: email,
                         user_role: initialRole,
@@ -166,6 +166,14 @@ export const authService = {
                 }
 
                 console.log("Registro completado con éxito");
+
+                // IMPORTANTE: Cerrar la sesión automática que crea Supabase
+                // El usuario debe hacer login manualmente después de ser activado
+                console.log(
+                    "Cerrando sesión automática después del registro..."
+                );
+                await supabase.auth.signOut();
+                console.log("Sesión cerrada correctamente");
             } catch (error: any) {
                 console.error("Error al configurar el usuario:", error);
                 throw new Error(
