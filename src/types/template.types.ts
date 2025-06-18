@@ -6,12 +6,14 @@ export interface Template {
     content: string;
     category: TemplateCategory;
     created_at: string;
+    owner_id: string | null; // ID del usuario que creó la plantilla (null para plantillas del sistema)
 }
 
 export interface NewTemplate {
     name: string;
     content: string;
     category: TemplateCategory;
+    owner_id?: string | null; // Opcional al crear, se asignará en el servicio
 }
 
 export const AVAILABLE_PLACEHOLDERS = [

@@ -20,127 +20,171 @@ export const authService = {
         email: string,
         password: string,
         fullName: string,
-        phone: string = ''
+        phone: string = ""
     ): Promise<void> {
         try {
-            console.log("Iniciando registro de usuario:", { email, fullName, phone });
+            console.log("Iniciando registro de usuario:", {
+                email,
+                fullName,
+                phone,
+            });
 
             // Determinar el rol y estado iniciales
             const isAdmin = email === "andreschmde@gmail.com";
             const initialRole = isAdmin ? "admin" : "reseller";
             const initialStatus = isAdmin ? "active" : "pending";
 
-            console.log("Rol y estado iniciales:", { initialRole, initialStatus });
+            console.log("Rol y estado iniciales:", {
+                initialRole,
+                initialStatus,
+            });
 
             // 1. Registrar el usuario en auth
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        role: initialRole,
-                        status: initialStatus,
-                        full_name: fullName,
-                        phone: phone || '',
+            const { data: authData, error: authError } =
+                await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            role: initialRole,
+                            status: initialStatus,
+                            full_name: fullName,
+                            phone: phone || "",
+                        },
                     },
-                },
-            });
+                });
 
             if (authError) {
                 if (authError.message.includes("already registered")) {
                     throw new Error("El correo electrónico ya está registrado");
                 }
-                throw new Error("Error al crear el usuario: " + authError.message);
+                throw new Error(
+                    "Error al crear el usuario: " + authError.message
+                );
             }
 
             if (!authData.user) {
                 throw new Error("No se pudo crear el usuario");
             }
 
-            console.log("Usuario creado en auth:", { id: authData.user.id, email: authData.user.email });
+            console.log("Usuario creado en auth:", {
+                id: authData.user.id,
+                email: authData.user.email,
+            });
 
             // 2. Usar la función RPC create_user_profile para crear el perfil
-            // Esta función ignora las políticas RLS y funciona correctamente
             try {
-                console.log("Usando RPC create_user_profile para crear el perfil...");
-                const { data: profileResult, error: profileError } = await supabase.rpc('create_user_profile', {
-                    user_id: authData.user.id,
-                    user_email: email,
-                    user_role: initialRole,
-                    user_status: initialStatus,
-                    user_full_name: fullName
-                });
-                
+                console.log(
+                    "Usando RPC create_user_profile para crear el perfil..."
+                );
+                const { data: profileResult, error: profileError } =
+                    await supabase.rpc("create_user_profile", {
+                        user_id: authData.user.id,
+                        user_email: email,
+                        user_role: initialRole,
+                        user_status: initialStatus,
+                        user_full_name: fullName,
+                    });
+
                 if (profileError) {
-                    console.error("Error al crear perfil con RPC:", profileError);
-                    throw new Error("Error al crear el perfil del usuario: " + profileError.message);
+                    console.error(
+                        "Error al crear perfil con RPC:",
+                        profileError
+                    );
+                    throw new Error(
+                        "Error al crear el perfil del usuario: " +
+                            profileError.message
+                    );
                 }
-                
-                console.log("Perfil creado correctamente con RPC:", profileResult);
-                
-                // 3. Si es revendedor, crear entrada en la tabla resellers
-                if (initialRole === 'reseller') {
+
+                console.log(
+                    "Perfil creado correctamente con RPC:",
+                    profileResult
+                );
+
+                // 3. Si es revendedor, crear entrada en la tabla resellers e inicializar plantillas
+                if (initialRole === "reseller") {
                     try {
                         // Calcular fecha de expiración (30 días desde hoy)
                         const expirationDate = new Date();
                         expirationDate.setDate(expirationDate.getDate() + 30);
-                        
+
                         // Crear el revendedor usando RPC
-                        console.log("Creando revendedor con RPC update_user_status...");
-                        const { data: statusResult, error: statusError } = await supabase
-                            .rpc('update_user_status', { 
-                                user_id: authData.user.id, 
-                                new_status: initialStatus 
-                            });
-                            
-                        if (statusError) {
-                            console.error("Error al crear revendedor con RPC update_user_status:", statusError);
-                        } else {
-                            console.log("Revendedor creado correctamente con RPC update_user_status");
-                        }
-                        
-                        // Intentar actualizar campos adicionales del revendedor
-                        console.log("Actualizando datos adicionales del revendedor...");
-                        try {
-                            const { error: updateError } = await supabase
-                                .rpc('update_reseller_info', {
-                                    reseller_id: authData.user.id,
-                                    reseller_phone: phone || '',
-                                    reseller_plan_type: "basic",
-                                    reseller_plan_end_date: expirationDate.toISOString()
-                                });
-                                
-                            if (updateError) {
-                                console.error("Error al actualizar info adicional del revendedor:", updateError);
-                            } else {
-                                console.log("Datos adicionales del revendedor actualizados correctamente");
+                        console.log(
+                            "Creando revendedor con RPC update_user_status..."
+                        );
+                        const { error: statusError } = await supabase.rpc(
+                            "update_user_status",
+                            {
+                                user_id: authData.user.id,
+                                new_status: initialStatus,
                             }
-                        } catch (updateError) {
-                            console.error("Excepción al actualizar datos adicionales:", updateError);
-                            // Continuamos a pesar del error
+                        );
+
+                        if (statusError) {
+                            console.error(
+                                "Error al crear revendedor con RPC update_user_status:",
+                                statusError
+                            );
+                        } else {
+                            console.log(
+                                "Revendedor creado correctamente con RPC update_user_status"
+                            );
+                        }
+
+                        // Intentar actualizar campos adicionales del revendedor
+                        console.log(
+                            "Actualizando datos adicionales del revendedor..."
+                        );
+                        const { error: updateError } = await supabase.rpc(
+                            "update_reseller_info",
+                            {
+                                reseller_id: authData.user.id,
+                                reseller_phone: phone || "",
+                                reseller_plan_type: "basic",
+                                reseller_plan_end_date:
+                                    expirationDate.toISOString(),
+                            }
+                        );
+
+                        if (updateError) {
+                            console.error(
+                                "Error al actualizar info adicional del revendedor:",
+                                updateError
+                            );
+                        } else {
+                            console.log(
+                                "Datos adicionales del revendedor actualizados correctamente"
+                            );
                         }
                     } catch (resellerError) {
-                        console.error("Error al configurar revendedor:", resellerError);
-                        // Continuamos a pesar del error, ya que el perfil se creó correctamente
+                        console.error(
+                            "Error al configurar revendedor:",
+                            resellerError
+                        );
                     }
                 }
-                
-                console.log('Registro completado con éxito');
+
+                console.log("Registro completado con éxito");
             } catch (error: any) {
                 console.error("Error al configurar el usuario:", error);
-                throw new Error("Se creó el usuario pero hubo un error al configurar su perfil: " + error.message);
+                throw new Error(
+                    "Se creó el usuario pero hubo un error al configurar su perfil: " +
+                        error.message
+                );
             }
         } catch (error: any) {
             console.error("Error en el registro:", error);
             throw error;
         }
     },
-    
+
+    // ... (resto de las funciones sin cambios)
     // Actualizar el rol de un usuario
     async updateUserRole(userId: string, role: "admin" | "reseller") {
         try {
             console.log(`Actualizando rol de usuario ${userId} a ${role}`);
-            
+
             // 1. Actualizar en profiles
             const { error: profileError } = await supabase
                 .from("profiles")
@@ -148,7 +192,10 @@ export const authService = {
                 .eq("id", userId);
 
             if (profileError) {
-                console.error("Error actualizando rol en profiles:", profileError);
+                console.error(
+                    "Error actualizando rol en profiles:",
+                    profileError
+                );
                 throw profileError;
             }
 
@@ -157,17 +204,20 @@ export const authService = {
             // 2. Si el nuevo rol es 'reseller', verificar si existe en la tabla resellers
             if (role === "reseller") {
                 // Verificar si ya existe un revendedor con este ID
-                const { data: existingReseller, error: checkResellerError } = await supabase
-                    .from('resellers')
-                    .select('id')
-                    .eq('id', userId)
-                    .maybeSingle();
-                    
-                console.log('Verificación de revendedor existente:', {
+                const { data: existingReseller, error: checkResellerError } =
+                    await supabase
+                        .from("resellers")
+                        .select("id")
+                        .eq("id", userId)
+                        .maybeSingle();
+
+                console.log("Verificación de revendedor existente:", {
                     existingReseller,
-                    error: checkResellerError ? checkResellerError.message : null
+                    error: checkResellerError
+                        ? checkResellerError.message
+                        : null,
                 });
-                
+
                 // Si no existe, obtener datos del perfil para crear el revendedor
                 if (!existingReseller) {
                     const { data: profileData } = await supabase
@@ -180,7 +230,7 @@ export const authService = {
                         // Calcular fecha de expiración (30 días desde hoy)
                         const expirationDate = new Date();
                         expirationDate.setDate(expirationDate.getDate() + 30);
-                                
+
                         // Crear entrada en resellers
                         const { error: resellerError } = await supabase
                             .from("resellers")
@@ -193,12 +243,15 @@ export const authService = {
                                     phone: "",
                                     plan_type: "basic",
                                     plan_end_date: expirationDate.toISOString(),
-                                    created_at: new Date().toISOString()
-                                }
+                                    created_at: new Date().toISOString(),
+                                },
                             ]);
-                            
+
                         if (resellerError) {
-                            console.error("Error creando revendedor:", resellerError);
+                            console.error(
+                                "Error creando revendedor:",
+                                resellerError
+                            );
                             // No lanzamos error para no interrumpir el proceso
                         } else {
                             console.log("Revendedor creado correctamente");
@@ -213,18 +266,23 @@ export const authService = {
             throw new Error("Error al actualizar el rol del usuario");
         }
     },
-    
+
     // Actualizar el estado de un usuario (función vacía para mantener compatibilidad)
-    async updateUserStatus(userId: string, status: "active" | "inactive" | "pending") {
-        console.log('Esta función ha sido reemplazada por userStatusService.ts');
+    async updateUserStatus(
+        userId: string,
+        status: "active" | "inactive" | "pending"
+    ) {
+        console.log(
+            "Esta función ha sido reemplazada por userStatusService.ts"
+        );
         return { success: true };
     },
-    
+
     // Iniciar sesión
     async login(email: string, password: string): Promise<AuthResponse> {
         try {
             console.log(`Intentando iniciar sesión con email: ${email}`);
-            
+
             const { data: authData, error: authError } =
                 await supabase.auth.signInWithPassword({
                     email,
@@ -237,26 +295,34 @@ export const authService = {
             }
 
             console.log("Autenticación exitosa, obteniendo datos del perfil");
-            
+
             // Obtener datos actualizados del perfil desde la tabla profiles
             const { data: profileData, error: profileError } = await supabase
                 .from("profiles")
                 .select("role, status, full_name")
                 .eq("id", authData.user.id)
                 .single();
-                
-            console.log("Datos del perfil:", profileData, "Error:", profileError);
-            
+
+            console.log(
+                "Datos del perfil:",
+                profileData,
+                "Error:",
+                profileError
+            );
+
             // Si hay error al obtener el perfil o no existe, usar los metadatos como respaldo
             let role, status, full_name;
-            
+
             if (profileError || !profileData) {
                 console.log("Usando metadatos como respaldo");
-                role = authData.user.user_metadata?.role ||
+                role =
+                    authData.user.user_metadata?.role ||
                     (email === "andreschmde@gmail.com" ? "admin" : "reseller");
-                status = authData.user.user_metadata?.status ||
+                status =
+                    authData.user.user_metadata?.status ||
                     (email === "andreschmde@gmail.com" ? "active" : "pending");
-                full_name = authData.user.user_metadata?.full_name ||
+                full_name =
+                    authData.user.user_metadata?.full_name ||
                     (email === "andreschmde@gmail.com" ? "Andres" : "");
             } else {
                 // Usar los datos actualizados del perfil
@@ -265,52 +331,87 @@ export const authService = {
                 status = profileData.status;
                 full_name = profileData.full_name;
             }
-            
-            console.log("Estado final del usuario:", { role, status, full_name });
+
+            console.log("Estado final del usuario:", {
+                role,
+                status,
+                full_name,
+            });
 
             // Verificar si el usuario está pendiente o inactivo
             // Forzar una verificación adicional en la tabla resellers si es un revendedor
             if (role === "reseller") {
-                console.log("Usuario es revendedor, verificando estado en tabla resellers");
+                console.log(
+                    "Usuario es revendedor, verificando estado en tabla resellers"
+                );
                 try {
                     // Intentar obtener el estado desde la tabla resellers
-                    const { data: resellerData, error: resellerError } = await supabase
-                        .from("resellers")
-                        .select("status")
-                        .or(`id.eq.${authData.user.id},user_id.eq.${authData.user.id}`)
-                        .maybeSingle();
-                        
-                    console.log("Datos del revendedor:", resellerData, "Error:", resellerError);
-                    
+                    const { data: resellerData, error: resellerError } =
+                        await supabase
+                            .from("resellers")
+                            .select("status")
+                            .or(
+                                `id.eq.${authData.user.id},user_id.eq.${authData.user.id}`
+                            )
+                            .maybeSingle();
+
+                    console.log(
+                        "Datos del revendedor:",
+                        resellerData,
+                        "Error:",
+                        resellerError
+                    );
+
                     // Si encontramos datos en la tabla resellers, usar ese estado
                     if (!resellerError && resellerData && resellerData.status) {
-                        console.log("Usando estado de la tabla resellers:", resellerData.status);
+                        console.log(
+                            "Usando estado de la tabla resellers:",
+                            resellerData.status
+                        );
                         status = resellerData.status;
                     }
                 } catch (resellerCheckError) {
-                    console.error("Error verificando estado en resellers:", resellerCheckError);
+                    console.error(
+                        "Error verificando estado en resellers:",
+                        resellerCheckError
+                    );
                 }
             }
-            
+
             // Realizar una verificación adicional en la tabla profiles para asegurarnos
             // de tener el estado más actualizado
             try {
                 console.log("Verificación adicional del estado en profiles");
-                const { data: latestProfile, error: latestProfileError } = await supabase
-                    .rpc('get_user_profile', { user_id: authData.user.id });
-                
-                if (!latestProfileError && latestProfile && latestProfile.length > 0) {
-                    console.log("Datos más recientes del perfil:", latestProfile[0]);
+                const { data: latestProfile, error: latestProfileError } =
+                    await supabase.rpc("get_user_profile", {
+                        user_id: authData.user.id,
+                    });
+
+                if (
+                    !latestProfileError &&
+                    latestProfile &&
+                    latestProfile.length > 0
+                ) {
+                    console.log(
+                        "Datos más recientes del perfil:",
+                        latestProfile[0]
+                    );
                     // Usar el estado más reciente del perfil como fuente de verdad final
                     status = latestProfile[0].status;
-                    console.log("Estado actualizado desde get_user_profile:", status);
+                    console.log(
+                        "Estado actualizado desde get_user_profile:",
+                        status
+                    );
                 }
             } catch (profileCheckError) {
-                console.error("Error en verificación adicional del perfil:", profileCheckError);
+                console.error(
+                    "Error en verificación adicional del perfil:",
+                    profileCheckError
+                );
             }
-            
+
             console.log("Estado final para verificación:", status);
-            
+
             if (status === "pending") {
                 console.log("Usuario pendiente de activación");
                 throw new Error(
@@ -349,38 +450,60 @@ export const authService = {
                 data: { session },
             } = await supabase.auth.getSession();
             if (!session?.user) return null;
-            
+
             console.log("Obteniendo datos actualizados del usuario actual");
-            
+
             // Obtener datos actualizados del perfil desde la tabla profiles
             const { data: profileData, error: profileError } = await supabase
                 .from("profiles")
                 .select("role, status, full_name")
                 .eq("id", session.user.id)
                 .single();
-                
-            console.log("Datos del perfil actual:", profileData, "Error:", profileError);
-            
+
+            console.log(
+                "Datos del perfil actual:",
+                profileData,
+                "Error:",
+                profileError
+            );
+
             // Si hay error al obtener el perfil o no existe, usar los metadatos como respaldo
             let role, status, full_name;
-            
+
             if (profileError || !profileData) {
-                console.log("Usando metadatos como respaldo para usuario actual");
-                role = session.user.user_metadata?.role ||
-                    (session.user.email === "andreschmde@gmail.com" ? "admin" : "reseller");
-                status = session.user.user_metadata?.status ||
-                    (session.user.email === "andreschmde@gmail.com" ? "active" : "pending");
-                full_name = session.user.user_metadata?.full_name ||
-                    (session.user.email === "andreschmde@gmail.com" ? "Andres" : "");
+                console.log(
+                    "Usando metadatos como respaldo para usuario actual"
+                );
+                role =
+                    session.user.user_metadata?.role ||
+                    (session.user.email === "andreschmde@gmail.com"
+                        ? "admin"
+                        : "reseller");
+                status =
+                    session.user.user_metadata?.status ||
+                    (session.user.email === "andreschmde@gmail.com"
+                        ? "active"
+                        : "pending");
+                full_name =
+                    session.user.user_metadata?.full_name ||
+                    (session.user.email === "andreschmde@gmail.com"
+                        ? "Andres"
+                        : "");
             } else {
                 // Usar los datos actualizados del perfil
-                console.log("Usando datos actualizados del perfil para usuario actual");
+                console.log(
+                    "Usando datos actualizados del perfil para usuario actual"
+                );
                 role = profileData.role;
                 status = profileData.status;
                 full_name = profileData.full_name;
             }
-            
-            console.log("Estado final del usuario actual:", { role, status, full_name });
+
+            console.log("Estado final del usuario actual:", {
+                role,
+                status,
+                full_name,
+            });
 
             return {
                 id: session.user.id,
@@ -406,39 +529,76 @@ export const authService = {
             throw new Error("Error al cerrar sesión");
         }
     },
-    
+
+    // Nueva función para actualizar la contraseña del usuario
+    async updateUserPassword(newPassword: string): Promise<void> {
+        try {
+            console.log("Intentando actualizar la contraseña del usuario");
+            const { data, error } = await supabase.auth.updateUser({
+                password: newPassword,
+            });
+
+            if (error) {
+                console.error("Error al actualizar la contraseña:", error);
+                throw new Error(
+                    "Error al actualizar la contraseña: " + error.message
+                );
+            }
+            console.log("Contraseña actualizada exitosamente:", data);
+        } catch (error: any) {
+            console.error("Error en updateUserPassword:", error);
+            throw error;
+        }
+    },
+
     // Eliminar un usuario (solo disponible para administradores)
     async deleteUser(userId: string): Promise<void> {
         try {
             console.log("Intentando eliminar usuario de Auth:", userId);
-            
+
             // Verificar si hay una sesión activa
             const { data: sessionData } = await supabase.auth.getSession();
             if (!sessionData?.session) {
-                throw new Error("No hay una sesión activa para realizar esta operación");
+                throw new Error(
+                    "No hay una sesión activa para realizar esta operación"
+                );
             }
-            
+
             // Intentar eliminar el usuario usando la API de Admin
             // Nota: Esto solo funcionará si el usuario tiene permisos de administrador
             try {
                 // Primero intentamos con la API de Admin si está disponible
                 if (supabaseAdmin) {
-                    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+                    const { error } = await supabaseAdmin.auth.admin.deleteUser(
+                        userId
+                    );
                     if (error) {
-                        console.error("Error al eliminar usuario con supabaseAdmin:", error);
+                        console.error(
+                            "Error al eliminar usuario con supabaseAdmin:",
+                            error
+                        );
                         throw error;
                     }
-                    console.log("Usuario eliminado correctamente de Auth con supabaseAdmin");
+                    console.log(
+                        "Usuario eliminado correctamente de Auth con supabaseAdmin"
+                    );
                     return;
                 }
             } catch (adminError) {
-                console.error("Error o no disponible supabaseAdmin:", adminError);
+                console.error(
+                    "Error o no disponible supabaseAdmin:",
+                    adminError
+                );
                 // Continuamos con el siguiente método si este falla
             }
-            
+
             // Como alternativa, mostramos un mensaje indicando que la eliminación de Auth debe ser manual
-            console.log("No se pudo eliminar el usuario de Auth automáticamente");
-            throw new Error("La eliminación del usuario de Auth debe ser realizada manualmente por un administrador");
+            console.log(
+                "No se pudo eliminar el usuario de Auth automáticamente"
+            );
+            throw new Error(
+                "La eliminación del usuario de Auth debe ser realizada manualmente por un administrador"
+            );
         } catch (error: any) {
             console.error("Error en deleteUser:", error);
             throw error;

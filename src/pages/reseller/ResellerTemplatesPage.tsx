@@ -1,24 +1,30 @@
-import React from "react";
-import { useState, useEffect } from "react";
-import { templateService } from "../services/templates";
-import { AVAILABLE_PLACEHOLDERS } from "../types/template.types";
-import type { Template, TemplateCategory } from "../types/template.types";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { templateService } from "../../services/templates";
+import {
+    AVAILABLE_PLACEHOLDERS,
+    Template,
+    TemplateCategory,
+    NewTemplate,
+} from "../../types/template.types";
+import { useAuth } from "../../contexts/AuthContext";
 import { Pencil, Trash2 } from "lucide-react";
 
-export default function TemplatesPage() {
+const ResellerTemplatesPage: React.FC = () => {
+    const { user } = useAuth();
     const [templates, setTemplates] = useState<Template[]>([]);
-    const [editingTemplate, setEditingTemplate] = useState<{
-        id?: string;
-        name: string;
-        content: string;
-        category: TemplateCategory;
-    }>({ name: "", content: "", category: "credenciales" });
+    const [editingTemplate, setEditingTemplate] = useState<Partial<Template>>({
+        name: "",
+        content: "",
+        category: "credenciales",
+    });
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchTemplates = async () => {
+        if (!user) return;
+        setIsLoading(true);
         try {
-            const data = await templateService.getAll();
+            const data = await templateService.getAll(user.id);
             setTemplates(data);
         } catch (error) {
             console.error("Error fetching templates:", error);
@@ -38,83 +44,90 @@ export default function TemplatesPage() {
                 toast.error("Error al cargar las plantillas");
             }
         };
-        init();
-    }, []);
+        if (user) {
+            init();
+        }
+    }, [user]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) {
+            toast.error("Debes iniciar sesión para guardar plantillas.");
+            return;
+        }
         try {
             if (editingTemplate.id) {
-                // Actualizar plantilla existente
-                await templateService.update(editingTemplate.id, {
-                    name: editingTemplate.name,
-                    content: editingTemplate.content,
-                    category: editingTemplate.category,
-                });
+                await templateService.update(
+                    editingTemplate.id,
+                    editingTemplate
+                );
                 toast.success("Plantilla actualizada exitosamente");
             } else {
-                // Crear nueva plantilla
-                await templateService.create(editingTemplate, "admin"); // Asignar al admin por defecto
+                await templateService.create(
+                    editingTemplate as NewTemplate,
+                    user.id
+                );
                 toast.success("Plantilla creada exitosamente");
             }
             setEditingTemplate({
                 name: "",
                 content: "",
                 category: "credenciales",
-            }); // Limpiar formulario
+            });
             fetchTemplates();
         } catch (error) {
             console.error("Error al guardar plantilla:", error);
-            toast.error("Error al guardar la plantilla");
+            toast.error(`Error al guardar la plantilla: ${error.message}`);
         }
     };
 
     const handleDelete = async (id: string) => {
+        if (!user) {
+            toast.error("Debes iniciar sesión para eliminar plantillas.");
+            return;
+        }
         if (!window.confirm("¿Estás seguro de eliminar esta plantilla?"))
             return;
 
         try {
-            await templateService.delete(id, "admin"); // Asumir que el admin puede borrar
+            await templateService.delete(id, user.id);
             toast.success("Plantilla eliminada exitosamente");
             fetchTemplates();
         } catch (error) {
             console.error("Error deleting template:", error);
-            toast.error("Error al eliminar la plantilla");
+            toast.error(`Error al eliminar la plantilla: ${error.message}`);
         }
     };
 
     const insertPlaceholder = (placeholder: string) => {
         setEditingTemplate((prev) => ({
             ...prev,
-            content: prev.content + `{${placeholder}}`,
+            content: (prev.content || "") + `{${placeholder}}`,
         }));
     };
 
+    const isSystemTemplate = (template: Template) => template.owner_id === null;
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 p-4">
             <h1 className="text-2xl font-semibold mb-6">
-                Gestión de Plantillas WhatsApp
+                Gestión de Plantillas de WhatsApp
             </h1>
 
-            {/* Formulario de Nueva Plantilla */}
             <div className="bg-[#1a1d24] rounded-xl border border-border/10 p-6">
                 <h2 className="text-lg font-medium mb-4">
-                    Crear Nueva Plantilla
+                    {editingTemplate.id
+                        ? "Editar Plantilla"
+                        : "Crear Nueva Plantilla"}
                 </h2>
-                <p className="text-sm text-muted-foreground mb-6">
-                    Define un nuevo mensaje predefinido.
-                </p>
-
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                         <label className="text-sm font-medium">
-                            {editingTemplate.id
-                                ? "Editar Plantilla"
-                                : "Nueva Plantilla"}
+                            Nombre de la Plantilla
                         </label>
                         <input
                             type="text"
-                            value={editingTemplate.name}
+                            value={editingTemplate.name || ""}
                             onChange={(e) =>
                                 setEditingTemplate((prev) => ({
                                     ...prev,
@@ -124,13 +137,20 @@ export default function TemplatesPage() {
                             placeholder="Ej: Recordatorio urgente"
                             className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm"
                             required
+                            disabled={
+                                !!editingTemplate.id &&
+                                isSystemTemplate(
+                                    templates.find(
+                                        (t) => t.id === editingTemplate.id
+                                    )!
+                                )
+                            }
                         />
                     </div>
-
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Categoría</label>
                         <select
-                            value={editingTemplate.category}
+                            value={editingTemplate.category || "credenciales"}
                             onChange={(e) =>
                                 setEditingTemplate((prev) => ({
                                     ...prev,
@@ -145,25 +165,23 @@ export default function TemplatesPage() {
                             <option value="recordatorio">Recordatorio</option>
                         </select>
                     </div>
-
                     <div className="space-y-2">
                         <label className="text-sm font-medium">
                             Contenido del Mensaje
                         </label>
                         <textarea
-                            value={editingTemplate.content}
+                            value={editingTemplate.content || ""}
                             onChange={(e) =>
                                 setEditingTemplate((prev) => ({
                                     ...prev,
                                     content: e.target.value,
                                 }))
                             }
-                            placeholder="Escribe tu mensaje aquí. Usa {variables} para placeholders como {cliente}, {plataforma}, etc."
+                            placeholder="Escribe tu mensaje aquí..."
                             className="w-full h-32 bg-background/50 border border-border/10 rounded-lg px-3 py-2 text-sm"
                             required
                         />
                     </div>
-
                     <div>
                         <label className="text-sm font-medium block mb-2">
                             Placeholders disponibles
@@ -184,8 +202,7 @@ export default function TemplatesPage() {
                             )}
                         </div>
                     </div>
-
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-end gap-4">
                         {editingTemplate.id && (
                             <button
                                 type="button"
@@ -213,66 +230,56 @@ export default function TemplatesPage() {
                 </form>
             </div>
 
-            {/* Lista de Plantillas */}
             <div className="space-y-4">
                 <h2 className="text-lg font-medium">Plantillas Existentes</h2>
-
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {isLoading ? (
-                        <div className="col-span-2 text-center py-8 text-muted-foreground">
-                            Cargando plantillas...
-                        </div>
-                    ) : templates.length === 0 ? (
-                        <div className="col-span-2 text-center py-8 text-muted-foreground">
-                            No hay plantillas creadas.
-                        </div>
+                        <p>Cargando...</p>
                     ) : (
                         templates.map((template) => (
                             <div
                                 key={template.id}
-                                className="bg-[#1a1d24] rounded-xl border border-border/10 p-6 relative group"
+                                className="bg-[#1a1d24] rounded-xl border border-border/10 p-6"
                             >
-                                <div className="flex justify-end gap-2 mb-4">
-                                    <button
-                                        onClick={() =>
-                                            setEditingTemplate({
-                                                id: template.id,
-                                                name: template.name,
-                                                content: template.content,
-                                                category: template.category,
-                                            })
-                                        }
-                                        className="p-1.5 rounded-md hover:bg-[#00A8FF]/20 text-[#00A8FF] hover:text-[#00A8FF] transition-colors"
-                                    >
-                                        <Pencil className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            handleDelete(template.id)
-                                        }
-                                        className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 hover:text-red-500 transition-colors"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <h3 className="font-medium text-[#00A8FF]">
+                                            {template.name}
+                                        </h3>
+                                        <span
+                                            className={`text-xs ${
+                                                isSystemTemplate(template)
+                                                    ? "text-blue-400"
+                                                    : "text-gray-400"
+                                            }`}
+                                        >
+                                            {isSystemTemplate(template)
+                                                ? "Plantilla del Sistema"
+                                                : "Mi Plantilla"}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() =>
+                                                setEditingTemplate(template)
+                                            }
+                                            className="p-1.5 rounded-md hover:bg-[#00A8FF]/20 text-[#00A8FF] transition-colors"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                        {!isSystemTemplate(template) && (
+                                            <button
+                                                onClick={() =>
+                                                    handleDelete(template.id)
+                                                }
+                                                className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-
-                                <div className="flex items-center gap-2 mb-3">
-                                    <h3 className="font-medium text-[#00A8FF]">
-                                        {template.name}
-                                    </h3>
-                                    <span
-                                        className={`px-2 py-0.5 text-xs rounded-full ${
-                                            template.category === "credenciales"
-                                                ? "bg-green-500/20 text-green-400"
-                                                : "bg-yellow-500/20 text-yellow-400"
-                                        }`}
-                                    >
-                                        {template.category === "credenciales"
-                                            ? "Credenciales"
-                                            : "Recordatorio"}
-                                    </span>
-                                </div>
-                                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed mt-4">
                                     {template.content}
                                 </p>
                             </div>
@@ -282,4 +289,6 @@ export default function TemplatesPage() {
             </div>
         </div>
     );
-}
+};
+
+export default ResellerTemplatesPage;

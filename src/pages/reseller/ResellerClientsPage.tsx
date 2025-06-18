@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { ClientsTable } from "../components/clients/ClientsTable";
-import { ClientModal } from "../components/clients/ClientModal";
-import { ClientData, ClientFormData, clientService } from "../services/clients";
+import { ClientsTable } from "../../components/clients/ClientsTable";
+import { ClientModal } from "../../components/clients/ClientModal";
+import {
+    ClientData,
+    ClientFormData,
+    clientService,
+} from "../../services/clients"; // Reutilizar clientService
 import {
     PlusCircle,
     Users,
@@ -10,29 +14,21 @@ import {
     AlertTriangle,
     UserX,
 } from "lucide-react";
-import { RenewPlanModal } from "../components/modals/RenewPlanModal";
-import { replaceVariables, openWhatsApp } from "../services/reseller-actions";
-import { SelectTemplateModal } from "../components/resellers/SelectTemplateModal";
-import { Template } from "../types/template.types";
-import { supabase } from "../lib/supabase"; // Importar el cliente de Supabase
+import { RenewPlanModal } from "../../components/modals/RenewPlanModal";
+import {
+    replaceVariables,
+    openWhatsApp,
+} from "../../services/reseller-actions";
+import { SelectTemplateModal } from "../../components/resellers/SelectTemplateModal";
+import { Template } from "../../types/template.types";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../contexts/AuthContext"; // Para obtener el usuario actual
 
-// Función para obtener datos de resumen
+// Función para obtener datos de resumen (adaptada para revendedores)
 const getSummaryData = (clients: ClientData[]) => {
-    const today = new Date();
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
-
     const total = clients.length;
     const active = clients.filter((c) => c.status === "active").length;
-    const expiringSoon = clients.filter((c) => {
-        if (!c.fecha_fin) return false;
-        const endDate = new Date(c.fecha_fin);
-        return (
-            endDate > today &&
-            endDate <= thirtyDaysFromNow &&
-            c.status === "expiring"
-        );
-    }).length;
+    const expiringSoon = clients.filter((c) => c.status === "expiring").length; // Simplificado por ahora
     const expired = clients.filter((c) => c.status === "expired").length;
 
     return [
@@ -63,7 +59,8 @@ const getSummaryData = (clients: ClientData[]) => {
     ];
 };
 
-const ClientsPage = () => {
+const ResellerClientsPage = () => {
+    const { user } = useAuth(); // Obtener el usuario actual
     const [clients, setClients] = useState<ClientData[]>([]);
     const [filteredClients, setFilteredClients] = useState<ClientData[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -113,16 +110,21 @@ const ClientsPage = () => {
         }
     };
 
-    // Cargar clientes
+    // Cargar clientes (filtrados por el ID del revendedor)
     const fetchClients = async () => {
         setIsLoading(true);
         try {
-            const data = await clientService.getAll();
-            setClients(data);
-            filterClients(data, searchTerm, statusFilter);
+            // Asumiendo que clientService.getAll() puede filtrar por reseller_id
+            // O que necesitas una nueva función como clientService.getClientsByReseller(user.id)
+            const data = await clientService.getAll(); // Esto debería ser adaptado para filtrar por revendedor
+            const resellerClients = data.filter(
+                (client) => client.reseller_id === user?.id
+            ); // Filtrar en el frontend por ahora
+            setClients(resellerClients);
+            filterClients(resellerClients, searchTerm, statusFilter);
         } catch (error) {
-            console.error("Error al cargar clientes:", error);
-            toast.error("Error al cargar los clientes");
+            console.error("Error al cargar clientes del revendedor:", error);
+            toast.error("Error al cargar los clientes del revendedor");
         } finally {
             setIsLoading(false);
         }
@@ -135,7 +137,6 @@ const ClientsPage = () => {
         status: string
     ) => {
         const filtered = clientsList.filter((client) => {
-            // Filtro por búsqueda
             const matchesSearch = search
                 ? client.cliente
                       ?.toLowerCase()
@@ -150,7 +151,6 @@ const ClientsPage = () => {
                       : false)
                 : true;
 
-            // Filtro por estado
             const matchesStatus = status === "all" || client.status === status;
 
             return matchesSearch && matchesStatus;
@@ -161,19 +161,29 @@ const ClientsPage = () => {
 
     // Efecto para cargar datos iniciales
     useEffect(() => {
-        fetchClients();
-    }, []);
+        if (user?.id) {
+            // Asegurarse de que el ID del usuario esté disponible
+            fetchClients();
+        }
+    }, [user?.id]); // Dependencia del ID del usuario
 
     // Efecto para la suscripción a cambios en tiempo real en la tabla de clientes
     useEffect(() => {
+        if (!user?.id) return; // No suscribirse si no hay usuario
+
         const channel = supabase
-            .channel("custom-clients-channel") // Nombre único para el canal
+            .channel(`reseller-clients-${user.id}-channel`) // Canal único por revendedor
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "clients" }, // Escuchar todos los eventos
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "clients",
+                    filter: `reseller_id=eq.${user.id}`,
+                }, // Escuchar solo cambios para este revendedor
                 (payload) => {
                     console.log(
-                        "Cambio en tiempo real recibido en la tabla clients:",
+                        "Cambio en tiempo real recibido en la tabla clients para revendedor:",
                         payload
                     );
                     toast.info("Actualizando lista de clientes...", {
@@ -184,15 +194,17 @@ const ClientsPage = () => {
             )
             .subscribe((status, err) => {
                 if (status === "SUBSCRIBED") {
-                    console.log("Conectado a Supabase Realtime para clientes!");
+                    console.log(
+                        `Conectado a Supabase Realtime para clientes del revendedor ${user.id}!`
+                    );
                 }
                 if (status === "CHANNEL_ERROR") {
                     console.error(
-                        "Error en el canal de Supabase Realtime para clientes:",
+                        "Error en el canal de Supabase Realtime para clientes del revendedor:",
                         err
                     );
                     toast.error(
-                        "Error en la conexión de tiempo real para clientes."
+                        "Error en la conexión de tiempo real para clientes del revendedor."
                     );
                 }
             });
@@ -200,9 +212,11 @@ const ClientsPage = () => {
         // Función de limpieza para remover la suscripción
         return () => {
             supabase.removeChannel(channel);
-            console.log("Desconectado de Supabase Realtime para clientes.");
+            console.log(
+                "Desconectado de Supabase Realtime para clientes del revendedor."
+            );
         };
-    }, []); // Se ejecuta una vez para suscribirse
+    }, [user?.id]); // Se ejecuta cuando el ID del usuario cambia
 
     // Efecto para filtrar cuando cambian los criterios
     useEffect(() => {
@@ -211,14 +225,20 @@ const ClientsPage = () => {
 
     // Handler para guardar cliente
     const handleSaveClient = async (data: ClientFormData) => {
+        if (!user?.id) {
+            toast.error(
+                "No se pudo guardar el cliente: ID de revendedor no disponible."
+            );
+            return;
+        }
         try {
             if (selectedClient) {
                 // Actualizar cliente existente
                 await clientService.update(selectedClient.id, data);
                 toast.success("Cliente actualizado correctamente");
             } else {
-                // Crear nuevo cliente
-                await clientService.create(data);
+                // Crear nuevo cliente, asignando el reseller_id
+                await clientService.create({ ...data, reseller_id: user.id });
                 toast.success("Cliente creado correctamente");
             }
             setIsModalOpen(false);
@@ -343,7 +363,9 @@ const ClientsPage = () => {
     return (
         <div className="container mx-auto p-4">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Gestión de Clientes</h1>
+                <h1 className="text-2xl font-bold">
+                    Gestión de Clientes del Revendedor
+                </h1>
                 <button
                     className="bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"
                     onClick={() => {
@@ -456,4 +478,4 @@ const ClientsPage = () => {
     );
 };
 
-export default ClientsPage;
+export default ResellerClientsPage;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { templateService } from "../../services/templates";
 import type { Template, TemplateCategory } from "../../types/template.types";
 import { Button } from "../ui/button";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface SelectTemplateModalProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ export function SelectTemplateModal({
     onSelect,
     type,
 }: SelectTemplateModalProps) {
+    const { user } = useAuth();
     const [templates, setTemplates] = useState<Template[]>([]);
     const [loading, setLoading] = useState(true);
 

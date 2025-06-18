@@ -29,27 +29,36 @@ const handleSupabaseError = (error: any) => {
 export const templateService = {
     async initializeDefaultTemplates() {
         try {
-            // Verificar si ya existen plantillas
+            // Verificar si ya existen plantillas del sistema (owner_id es null)
             const { data: existingTemplates, error: checkError } =
-                await supabase.from("templates").select("*");
+                await supabase
+                    .from("templates")
+                    .select("*")
+                    .is("owner_id", null);
 
             if (checkError) {
                 handleSupabaseError(checkError);
             }
 
-            console.log("Verificación de plantillas:", { existingTemplates });
+            console.log("Verificación de plantillas del sistema:", {
+                existingTemplates,
+            });
 
             if (!existingTemplates || existingTemplates.length === 0) {
-                // Si no hay plantillas, crear las predeterminadas
+                // Si no hay plantillas del sistema, crear las predeterminadas
+                const templatesToInsert = DEFAULT_TEMPLATES.map((t) => ({
+                    ...t,
+                    owner_id: null,
+                }));
                 const { error: insertError } = await supabase
                     .from("templates")
-                    .insert(DEFAULT_TEMPLATES);
+                    .insert(templatesToInsert);
 
                 if (insertError) {
                     handleSupabaseError(insertError);
                 }
 
-                console.log("Plantillas predeterminadas creadas");
+                console.log("Plantillas predeterminadas del sistema creadas");
             }
         } catch (error: any) {
             console.error("Error al inicializar plantillas:", error);
@@ -57,12 +66,19 @@ export const templateService = {
         }
     },
 
-    async getAll() {
+    async getAll(userId?: string) {
         try {
-            const { data, error } = await supabase
-                .from("templates")
-                .select("*")
-                .order("created_at", { ascending: false });
+            let query = supabase.from("templates").select("*");
+
+            // Si se proporciona un userId, filtrar por plantillas del sistema (owner_id es null)
+            // o plantillas que pertenecen a ese usuario.
+            if (userId) {
+                query = query.or(`owner_id.eq.${userId},owner_id.is.null`);
+            }
+
+            const { data, error } = await query.order("created_at", {
+                ascending: false,
+            });
 
             if (error) {
                 handleSupabaseError(error);
@@ -75,11 +91,12 @@ export const templateService = {
         }
     },
 
-    async create(template: NewTemplate) {
+    async create(template: NewTemplate, userId: string) {
         try {
+            const templateWithOwner = { ...template, owner_id: userId };
             const { data, error } = await supabase
                 .from("templates")
-                .insert([template])
+                .insert([templateWithOwner])
                 .select()
                 .single();
 
@@ -106,7 +123,6 @@ export const templateService = {
             if (!template) throw new Error("Plantilla no encontrada");
 
             // Protección: no permitir cambiar el nombre de plantillas prediseñadas
-            // Si en el futuro se requiere control por rol de usuario, agregar aquí la lógica de admin.
             if (
                 (template.name === "Mensaje de Bienvenida" ||
                     template.name === "Recordatorio de Vencimiento") &&
@@ -118,14 +134,12 @@ export const templateService = {
                 );
             }
 
-            // Permitir actualizar el contenido y otros campos (menos el nombre si es prediseñada)
             const safeUpdates = { ...updates };
             if (
                 template.name === "Mensaje de Bienvenida" ||
                 template.name === "Recordatorio de Vencimiento"
             ) {
                 delete safeUpdates.name;
-                // Pero sí permitir actualizar la categoría
                 if (updates.category) {
                     safeUpdates.category = updates.category;
                 }
@@ -151,9 +165,8 @@ export const templateService = {
         }
     },
 
-    async delete(id: string) {
+    async delete(id: string, userId: string) {
         try {
-            // Primero verificar si es una plantilla del sistema
             const { data: template, error: fetchError } = await supabase
                 .from("templates")
                 .select("*")
@@ -163,18 +176,18 @@ export const templateService = {
             if (fetchError) throw fetchError;
             if (!template) throw new Error("Plantilla no encontrada");
 
-            // Protección reforzada: ningún revendedor puede eliminar plantillas prediseñadas.
-            // Si en el futuro se requiere control por rol de usuario, agregar aquí la lógica de admin.
-            if (
-                template.name === "Mensaje de Bienvenida" ||
-                template.name === "Recordatorio de Vencimiento"
-            ) {
+            if (template.owner_id === null) {
                 throw new Error(
-                    "No se pueden eliminar las plantillas prediseñadas. Estas sirven como ejemplo y solo el administrador podría eliminarlas."
+                    "No se pueden eliminar las plantillas del sistema."
                 );
             }
 
-            // Si no es una plantilla del sistema, proceder con la eliminación
+            if (template.owner_id !== userId) {
+                throw new Error(
+                    "No tienes permiso para eliminar esta plantilla."
+                );
+            }
+
             const { error: deleteError } = await supabase
                 .from("templates")
                 .delete()
