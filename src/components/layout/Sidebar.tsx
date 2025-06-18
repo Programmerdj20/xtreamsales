@@ -20,6 +20,11 @@ const getMenuItems = (isAdmin: boolean) => {
       icon: Users,
     },
     {
+      title: 'Clientes',
+      path: '/clients',
+      icon: Users,
+    },
+    {
       title: 'Plantillas',
       path: '/templates',
       icon: MessageSquare,
@@ -129,5 +134,5 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
       </button> */}
     </aside>
   );
-};
+}
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
 import ResellersPage from './pages/ResellersPage';
+import ClientsPage from './pages/ClientsPage';
 import DashboardPage from './pages/DashboardPage';
 import TemplatesPage from './pages/TemplatesPage';
 import UsersPage from './pages/admin/UsersPage';
@@ -32,6 +33,7 @@ function AppContent() {
           <Route element={<MainLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/resellers" element={<ResellersPage />} />
+            <Route path="/clients" element={<ClientsPage />} />
             <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/admin/activate-users" element={<ActivateUsers />} />
