@@ -8,6 +8,7 @@ import { RenewPlanModal } from "../components/modals/RenewPlanModal";
 import { replaceVariables, openWhatsApp } from "../services/reseller-actions";
 import { SelectTemplateModal } from "../components/resellers/SelectTemplateModal";
 import { Template } from "../types/template.types";
+import { supabase } from "../lib/supabase"; // Importar el cliente de Supabase
 
 // Función para obtener datos de resumen
 const getSummaryData = (clients: ClientData[]) => {
@@ -141,6 +142,36 @@ const ClientsPage = () => {
   useEffect(() => {
     fetchClients();
   }, []);
+
+  // Efecto para la suscripción a cambios en tiempo real en la tabla de clientes
+  useEffect(() => {
+    const channel = supabase
+        .channel('custom-clients-channel') // Nombre único para el canal
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'clients' }, // Escuchar todos los eventos
+            (payload) => {
+                console.log('Cambio en tiempo real recibido en la tabla clients:', payload);
+                toast.info('Actualizando lista de clientes...', { duration: 2000 });
+                fetchClients(); // Vuelve a cargar los datos
+            }
+        )
+        .subscribe((status, err) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('Conectado a Supabase Realtime para clientes!');
+            }
+            if (status === 'CHANNEL_ERROR') {
+                console.error('Error en el canal de Supabase Realtime para clientes:', err);
+                toast.error('Error en la conexión de tiempo real para clientes.');
+            }
+        });
+
+    // Función de limpieza para remover la suscripción
+    return () => {
+        supabase.removeChannel(channel);
+        console.log('Desconectado de Supabase Realtime para clientes.');
+    };
+  }, []); // Se ejecuta una vez para suscribirse
 
   // Efecto para filtrar cuando cambian los criterios
   useEffect(() => {

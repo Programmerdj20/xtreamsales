@@ -175,6 +175,37 @@ const ResellersPage = () => {
         filterResellers();
     }, [resellers, searchTerm, statusFilter]);
 
+    // Efecto para la suscripción a cambios en tiempo real en la tabla de revendedores
+    useEffect(() => {
+        // La función fetchResellers debe ser estable (envuelta en useCallback)
+        const channel = supabase
+            .channel('custom-resellers-channel') // Nombre único para el canal
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'resellers' }, // Escuchar todos los eventos (INSERT, UPDATE, DELETE)
+                (payload) => {
+                    console.log('Cambio en tiempo real recibido en la tabla resellers:', payload);
+                    toast.info('Actualizando lista de revendedores...', { duration: 2000 });
+                    fetchResellers(); // Vuelve a cargar los datos
+                }
+            )
+            .subscribe((status, err) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('Conectado a Supabase Realtime para revendedores!');
+                }
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Error en el canal de Supabase Realtime para revendedores:', err);
+                    toast.error('Error en la conexión de tiempo real para revendedores.');
+                }
+            });
+
+        // Función de limpieza para remover la suscripción cuando el componente se desmonte
+        return () => {
+            supabase.removeChannel(channel);
+            console.log('Desconectado de Supabase Realtime para revendedores.');
+        };
+    }, [fetchResellers]); // La estabilidad de fetchResellers es crucial aquí
+
     const handleDeleteReseller = useCallback(async (resellerId: string) => {
         try {
             await resellerService.delete(resellerId);
