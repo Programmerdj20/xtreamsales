@@ -5,8 +5,10 @@ import { AVAILABLE_PLACEHOLDERS } from "../types/template.types";
 import type { Template, TemplateCategory } from "../types/template.types";
 import { toast } from "sonner";
 import { Pencil, Trash2 } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function TemplatesPage() {
+    const { user } = useAuth();
     const [templates, setTemplates] = useState<Template[]>([]);
     const [editingTemplate, setEditingTemplate] = useState<{
         id?: string;
@@ -17,8 +19,9 @@ export default function TemplatesPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchTemplates = async () => {
+        if (!user) return;
         try {
-            const data = await templateService.getAll();
+            const data = await templateService.getAll(user.id);
             setTemplates(data);
         } catch (error) {
             console.error("Error fetching templates:", error);
@@ -38,11 +41,17 @@ export default function TemplatesPage() {
                 toast.error("Error al cargar las plantillas");
             }
         };
-        init();
-    }, []);
+        if (user) {
+            init();
+        }
+    }, [user]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) {
+            toast.error("Debes iniciar sesión para guardar plantillas.");
+            return;
+        }
         try {
             if (editingTemplate.id) {
                 // Actualizar plantilla existente
@@ -54,7 +63,7 @@ export default function TemplatesPage() {
                 toast.success("Plantilla actualizada exitosamente");
             } else {
                 // Crear nueva plantilla
-                await templateService.create(editingTemplate, "admin"); // Asignar al admin por defecto
+                await templateService.create(editingTemplate, user.id);
                 toast.success("Plantilla creada exitosamente");
             }
             setEditingTemplate({
@@ -70,11 +79,15 @@ export default function TemplatesPage() {
     };
 
     const handleDelete = async (id: string) => {
+        if (!user) {
+            toast.error("Debes iniciar sesión para eliminar plantillas.");
+            return;
+        }
         if (!window.confirm("¿Estás seguro de eliminar esta plantilla?"))
             return;
 
         try {
-            await templateService.delete(id, "admin"); // Asumir que el admin puede borrar
+            await templateService.delete(id, user.id);
             toast.success("Plantilla eliminada exitosamente");
             fetchTemplates();
         } catch (error) {
