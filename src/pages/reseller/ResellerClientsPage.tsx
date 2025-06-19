@@ -283,8 +283,7 @@ const ResellerClientsPage = () => {
 
             // Actualizar el cliente con la nueva fecha de fin y plan
             await clientService.update(clientToRenew.id, {
-                fecha_fin: endDate.toISOString(),
-                plataforma: plan, // Usamos el campo plataforma para almacenar el plan
+                plan: plan, // Usamos el campo plan para almacenar el plan de suscripción
             });
 
             toast.success(
@@ -314,6 +313,7 @@ const ResellerClientsPage = () => {
             const message = replaceVariables(template.content, {
                 cliente: clientToSend.cliente || "",
                 plataforma: clientToSend.plataforma || "",
+                plan_de_suscripcion: clientToSend.plan || "",
                 fecha_fin: clientToSend.fecha_fin
                     ? new Date(clientToSend.fecha_fin).toLocaleDateString()
                     : "",

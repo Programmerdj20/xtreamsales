@@ -87,6 +87,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({ clients, isLoading, 
             <th className="p-3 text-left font-medium">Cliente</th>
             <th className="p-3 text-left font-medium">Whatsapp</th>
             <th className="p-3 text-left font-medium">Plataforma</th>
+            <th className="p-3 text-left font-medium">Plan</th>
             <th className="p-3 text-left font-medium">Disp.</th>
             <th className="p-3 text-left font-medium">Usuario</th>
             <th className="p-3 text-left font-medium">Contraseña</th>
@@ -106,6 +107,11 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({ clients, isLoading, 
               <td className="p-3 font-medium">{client.cliente}</td>
               <td className="p-3">{client.whatsapp}</td>
               <td className="p-3">{client.plataforma}</td>
+              <td className="p-3">
+                <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-medium">
+                  {client.plan}
+                </span>
+              </td>
               <td className="p-3 text-center">{client.dispositivos}</td>
               <td className="p-3">{client.usuario}</td>
               <td className="p-3">{client.contraseña}</td>

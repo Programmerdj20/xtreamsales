@@ -19,6 +19,7 @@ export interface NewTemplate {
 export const AVAILABLE_PLACEHOLDERS = [
     { key: "cliente", description: "Nombre del cliente" },
     { key: "plataforma", description: "Nombre de la plataforma" },
+    { key: "plan_de_suscripcion", description: "Plan de suscripción (1 Mes, 3 Meses, etc.)" },
     { key: "usuario", description: "Nombre de usuario" },
     { key: "contraseña", description: "Contraseña del usuario" },
     { key: "fecha_inicio", description: "Fecha de inicio del servicio" },
