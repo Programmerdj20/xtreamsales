@@ -1,14 +1,13 @@
 import React from 'react';
 import { resellerService } from '../services/resellers';
 import { supabase } from '../lib/supabase';
-import type { NewReseller } from '../types/database.types';
 
 export function TestSupabase() {
   // Función para iniciar sesión
   const login = async () => {
     try {
       // Intentar crear el usuario primero
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email: 'andreschmde@gmail.com',
         password: 'Jacg120603@'
       });
@@ -33,18 +32,15 @@ export function TestSupabase() {
   // Función para probar la creación
   const testCreate = async () => {
     try {
-      const newReseller: NewReseller = {
+      const newReseller = {
         full_name: 'Test Reseller',
-        company_name: 'Test Company',
         email: `test${Date.now()}@example.com`,
         phone: '1234567890',
-        plan: 'basic',
-        subscription_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 días desde ahora
-        status: 'active',
-        total_clients: 0
+        plan_type: 'basic',
+        plan_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       };
 
-      const created = await resellerService.create(newReseller);
+      const created = await resellerService.createReseller(newReseller);
       console.log('Revendedor creado:', created);
     } catch (error) {
       console.error('Error al crear:', error);
@@ -64,7 +60,7 @@ export function TestSupabase() {
   // Función para probar la búsqueda
   const testSearch = async () => {
     try {
-      const results = await resellerService.search('test');
+      const results = await resellerService.getAll();
       console.log('Resultados de búsqueda:', results);
     } catch (error) {
       console.error('Error al buscar:', error);
@@ -78,7 +74,7 @@ export function TestSupabase() {
       if (resellers.length > 0) {
         const firstReseller = resellers[0];
         const updated = await resellerService.update(firstReseller.id, {
-          company_name: 'Updated Company ' + Date.now()
+          full_name: 'Updated Name ' + Date.now()
         });
         console.log('Revendedor actualizado:', updated);
       } else {

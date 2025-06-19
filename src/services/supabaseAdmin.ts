@@ -3,7 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 // Obtener las variables de entorno desde el objeto window
 declare global {
   interface ImportMeta {
-    env: Record<string, string>;
+    env: {
+      VITE_SUPABASE_URL: string;
+      VITE_SUPABASE_SERVICE_KEY?: string;
+      VITE_SUPABASE_ANON_KEY: string;
+    };
   }
 }
 

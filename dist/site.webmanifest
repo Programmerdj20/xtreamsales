@@ -1,0 +1,21 @@
+{
+    "name": "XtreamSales",
+    "short_name": "XtreamSales",
+    "description": "Control de Ventas - Gestión de Clientes y Comunicaciones",
+    "icons": [
+        {
+            "src": "/xs_logo.png",
+            "sizes": "105x104",
+            "type": "image/png"
+        },
+        {
+            "src": "/favicon.ico",
+            "sizes": "16x16 32x32",
+            "type": "image/x-icon"
+        }
+    ],
+    "start_url": "/",
+    "display": "standalone",
+    "theme_color": "#1e40af",
+    "background_color": "#ffffff"
+}
