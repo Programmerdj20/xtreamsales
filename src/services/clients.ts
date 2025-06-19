@@ -29,8 +29,13 @@ export interface ClientFormData
 
 // Calcular días restantes entre dos fechas
 const calcularDiasRestantes = (fechaFin: string): number => {
+    // Crear fechas sin tiempo para evitar problemas de zona horaria
     const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0); // Establecer hora a medianoche
+    
     const fin = new Date(fechaFin);
+    fin.setHours(0, 0, 0, 0); // Establecer hora a medianoche
+    
     const diferencia = fin.getTime() - hoy.getTime();
     return Math.ceil(diferencia / (1000 * 60 * 60 * 24));
 };
@@ -40,7 +45,7 @@ const determinarEstado = (
     diasRestantes: number
 ): "active" | "expiring" | "expired" => {
     if (diasRestantes <= 0) return "expired";
-    if (diasRestantes <= 7) return "expiring";
+    if (diasRestantes <= 5) return "expiring";
     return "active";
 };
 
@@ -58,6 +63,7 @@ export const clientService = {
             return data.map((client) => {
                 const diasRestantes = calcularDiasRestantes(client.fecha_fin);
                 const status = determinarEstado(diasRestantes);
+
 
                 return {
                     ...client,
@@ -92,8 +98,7 @@ export const clientService = {
                 {
                     ...data,
                     plan,
-                    dias_restantes: diasRestantes,
-                    status,
+                    // No almacenamos dias_restantes ni status - se calculan dinámicamente
                     owner_id, // NULL para admin, ID del usuario para revendedores
                     created_at: new Date().toISOString(),
                 },
@@ -108,14 +113,9 @@ export const clientService = {
 
     async update(id: string, data: Partial<ClientFormData>): Promise<void> {
         try {
-            // Si se actualiza la fecha de fin, recalcular días restantes y estado
+            // Si se actualiza la fecha de fin, no necesitamos recalcular aquí
+            // porque dias_restantes y status se calculan dinámicamente
             let updateData: any = { ...data };
-
-            if (data.fecha_fin) {
-                const diasRestantes = calcularDiasRestantes(data.fecha_fin);
-                updateData.dias_restantes = diasRestantes;
-                updateData.status = determinarEstado(diasRestantes);
-            }
 
             // Si se actualiza el plan pero no la fecha fin, actualizar la fecha fin
             if (data.plan && !data.fecha_fin) {
@@ -150,11 +150,8 @@ export const clientService = {
                 }
 
                 const formattedEndDate = endDate.toISOString().split("T")[0];
-                const diasRestantes = calcularDiasRestantes(formattedEndDate);
-
                 updateData.fecha_fin = formattedEndDate;
-                updateData.dias_restantes = diasRestantes;
-                updateData.status = determinarEstado(diasRestantes);
+                // No almacenamos dias_restantes ni status - se calculan dinámicamente
             }
 
             const { error } = await supabase

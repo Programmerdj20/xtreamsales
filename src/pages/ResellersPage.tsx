@@ -368,7 +368,7 @@ const ResellersPage = () => {
                                         <td className="p-4">{reseller.phone}</td>
                                         <td className="p-4">{reseller.plan_type}</td>
                                         <td className="p-4">{reseller.plan_end_date ? new Date(reseller.plan_end_date).toLocaleDateString() : ''}</td>
-                                        <td className="p-4">{(reseller as any).clients_count ?? '-'}</td>
+                                        <td className="p-4">{reseller.clients_count ?? 0}</td>
                                         <td className="p-4">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(reseller.status)}`}>
                                                 {getStatusLabel(reseller.status)}

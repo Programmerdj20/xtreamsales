@@ -112,20 +112,46 @@ export const resellerService = {
             );
             console.log(`Encontrados ${resellerProfiles.length} perfiles de revendedores`);
 
-            // Combinar datos de perfiles y resellers
+            // Obtener conteo de clientes por revendedor
+            console.log('Obteniendo conteo de clientes por revendedor...');
+            const clientCountPromises = resellerProfiles.map(async (profile) => {
+                const { count, error } = await supabase
+                    .from('clients')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('owner_id', profile.id);
+                
+                if (error) {
+                    console.error(`Error contando clientes para revendedor ${profile.id}:`, error);
+                    return { id: profile.id, clients_count: 0 };
+                }
+                
+                return { id: profile.id, clients_count: count || 0 };
+            });
+
+            const clientCounts = await Promise.all(clientCountPromises);
+            const clientCountMap = clientCounts.reduce((acc, item) => {
+                acc[item.id] = item.clients_count;
+                return acc;
+            }, {} as Record<string, number>);
+
+            // Combinar datos de perfiles, resellers y conteo de clientes
             const result = resellerProfiles.map(profile => {
                 const resellerData = resellersData.find(r =>
                     (r.id === profile.id || r.user_id === profile.id)
                 );
-                if (resellerData) {
-                    return {
-                        ...profile,
-                        ...resellerData
-                    };
-                }
-                return profile;
+                
+                const baseData = resellerData ? {
+                    ...profile,
+                    ...resellerData
+                } : profile;
+
+                return {
+                    ...baseData,
+                    clients_count: clientCountMap[profile.id] || 0
+                };
             });
 
+            console.log('Resultado final con conteo de clientes:', result);
             return result;
         } catch (error) {
             console.error("Error inesperado al obtener revendedores:", error);

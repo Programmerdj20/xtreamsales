@@ -10,6 +10,7 @@ export interface Reseller {
     plan_type: string;
     plan_end_date: string;
     status: string;
+    clients_count?: number;
 }
 
 export interface NewReseller {

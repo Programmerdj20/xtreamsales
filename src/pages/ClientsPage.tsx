@@ -266,27 +266,14 @@ const ClientsPage = () => {
         if (!clientToRenew) return;
 
         try {
-            // Calcular nueva fecha de fin según el plan seleccionado
-            const today = new Date();
-            let endDate = new Date(today);
-
-            if (plan.includes("1 Mes")) {
-                endDate.setMonth(today.getMonth() + 1);
-            } else if (plan.includes("3 Meses")) {
-                endDate.setMonth(today.getMonth() + 3);
-            } else if (plan.includes("6 Meses")) {
-                endDate.setMonth(today.getMonth() + 6);
-            } else if (plan.includes("12 Meses")) {
-                endDate.setFullYear(today.getFullYear() + 1);
-            }
-
-            // Actualizar el cliente con la nueva fecha de fin y plan
+            // Actualizar el cliente con el nuevo plan
+            // El clientService.update() calculará automáticamente la nueva fecha_fin
             await clientService.update(clientToRenew.id, {
                 plan: plan, // Usamos el campo plan para almacenar el plan de suscripción
             });
 
             toast.success(
-                `Plan renovado exitosamente hasta ${endDate.toLocaleDateString()}`
+                `Plan renovado exitosamente a ${plan}`
             );
             setIsRenewModalOpen(false);
             fetchClients(); // Recargar la lista de clientes
