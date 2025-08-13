@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { authService } from "./auth";
+import { calculatePlanEndDate, formatDateForInput } from "../lib/dateUtils";
 
 // Tipos para la gestión de clientes
 export interface ClientData {
@@ -82,9 +83,7 @@ export const clientService = {
             // Obtener el usuario actual para determinar la propiedad
             const currentUser = await authService.getCurrentUser();
 
-            // Calcular días restantes
-            const diasRestantes = calcularDiasRestantes(data.fecha_fin);
-            const status = determinarEstado(diasRestantes);
+            // Los días restantes y el status se calculan dinámicamente en el frontend
 
             // Asegurarse de que el plan esté definido
             const plan = data.plan || "1 Mes";
@@ -115,42 +114,12 @@ export const clientService = {
         try {
             // Si se actualiza la fecha de fin, no necesitamos recalcular aquí
             // porque dias_restantes y status se calculan dinámicamente
-            let updateData: any = { ...data };
+            const updateData: Partial<ClientFormData> = { ...data };
 
             // Si se actualiza el plan pero no la fecha fin, actualizar la fecha fin
             if (data.plan && !data.fecha_fin) {
-                // Obtener la fecha actual para calcular la nueva fecha fin
-                const today = new Date();
-                let endDate;
-
-                switch (data.plan) {
-                    case "Demo (24 Hrs)":
-                        endDate = new Date(today);
-                        endDate.setDate(today.getDate() + 1);
-                        break;
-                    case "1 Mes":
-                        endDate = new Date(today);
-                        endDate.setMonth(today.getMonth() + 1);
-                        break;
-                    case "3 Meses":
-                        endDate = new Date(today);
-                        endDate.setMonth(today.getMonth() + 3);
-                        break;
-                    case "6 Meses":
-                        endDate = new Date(today);
-                        endDate.setMonth(today.getMonth() + 6);
-                        break;
-                    case "12 Meses":
-                        endDate = new Date(today);
-                        endDate.setMonth(today.getMonth() + 12);
-                        break;
-                    default:
-                        endDate = new Date(today);
-                        endDate.setMonth(today.getMonth() + 1);
-                }
-
-                const formattedEndDate = endDate.toISOString().split("T")[0];
-                updateData.fecha_fin = formattedEndDate;
+                const endDate = calculatePlanEndDate(data.plan);
+                updateData.fecha_fin = formatDateForInput(endDate);
                 // No almacenamos dias_restantes ni status - se calculan dinámicamente
             }
 

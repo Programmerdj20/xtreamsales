@@ -467,13 +467,7 @@ const ResellersPage = () => {
                         await resellerService.update(resellerToRenew.id, { plan_type: plan });
                         await resellerActionsService.renew(
                             resellerToRenew.id,
-                            plan === "1 Mes"
-                                ? 1
-                                : plan === "3 Meses"
-                                ? 3
-                                : plan === "6 Meses"
-                                ? 6
-                                : 12
+                            plan
                         );
                         toast.success("Plan renovado exitosamente");
                         setIsRenewModalOpen(false);

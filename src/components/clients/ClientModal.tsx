@@ -3,6 +3,7 @@ import { ClientFormData, ClientData } from "../../services/clients";
 import { X, Calendar, DollarSign } from 'lucide-react';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
+import { calculatePlanEndDate, formatDateForInput } from '../../lib/dateUtils';
 
 interface ClientModalProps {
   isOpen: boolean;
@@ -12,50 +13,13 @@ interface ClientModalProps {
 }
 
 export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSubmit, client }) => {
-  // Función para calcular la fecha fin según el plan
-  const calculateEndDate = (plan: string) => {
-    const today = new Date();
-    let result;
-    
-    switch (plan) {
-      case 'Demo (24 Hrs)':
-        result = new Date(today);
-        result.setDate(today.getDate() + 1);
-        break;
-      case '1 Mes':
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 1);
-        break;
-      case '3 Meses':
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 3);
-        break;
-      case '6 Meses':
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 6);
-        break;
-      case '12 Meses':
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 12);
-        break;
-      default:
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 1); // Por defecto 1 mes
-    }
-    
-    return result;
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
   
   // Inicializar el formulario con valores por defecto o del cliente si está en modo edición
   const [formData, setFormData] = useState<ClientFormData & {phoneCountry?: string}>(() => {
     const today = new Date();
-    const todayFormatted = formatDate(today);
+    const todayFormatted = formatDateForInput(today);
     const defaultPlan = '1 Mes';
-    const defaultEndDate = formatDate(calculateEndDate(defaultPlan));
+    const defaultEndDate = formatDateForInput(calculatePlanEndDate(defaultPlan));
     
     return client ? {
       cliente: client.cliente,
@@ -92,7 +56,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
   useEffect(() => {
     if (client) {
       const defaultPlan = client.plan || '1 Mes';
-      const endDate = client.fecha_fin || formatDate(calculateEndDate(defaultPlan));
+      const endDate = client.fecha_fin || formatDateForInput(calculatePlanEndDate(defaultPlan));
       
       setFormData({
         cliente: client.cliente,
@@ -111,9 +75,9 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
       });
     } else {
       const today = new Date();
-      const todayFormatted = formatDate(today);
+      const todayFormatted = formatDateForInput(today);
       const defaultPlan = '1 Mes';
-      const defaultEndDate = formatDate(calculateEndDate(defaultPlan));
+      const defaultEndDate = formatDateForInput(calculatePlanEndDate(defaultPlan));
       
       setFormData({
         cliente: "",
@@ -276,7 +240,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
                 onChange={(e) => {
                   const newPlan = e.target.value;
                   // Calcular la nueva fecha de fin basada en el plan seleccionado
-                  const newEndDate = formatDate(calculateEndDate(newPlan));
+                  const newEndDate = formatDateForInput(calculatePlanEndDate(newPlan));
                   
                   setFormData(prev => ({ 
                     ...prev, 

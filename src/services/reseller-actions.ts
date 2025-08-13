@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { resellerService } from './resellers';
 import { templateService } from './templates';
+import { planToMonths } from '../lib/dateUtils';
 
 export const replaceVariables = (template: string, variables: Record<string, string>) => {
   return template.replace(/\{([^}]+)\}/g, (_, key) => {
@@ -95,9 +96,12 @@ export const resellerActionsService = {
     }
   },
 
-  async renew(id: string, months: number) {
+  async renew(id: string, planOrMonths: string | number) {
     try {
-      console.log('Renovando plan de revendedor con RPC:', { id, months });
+      // Convertir plan a meses si es string
+      const months = typeof planOrMonths === 'string' ? planToMonths(planOrMonths) : planOrMonths;
+      
+      console.log('Renovando plan de revendedor con RPC:', { id, plan: planOrMonths, months });
       
       // Usar la función RPC renew_plan para renovar el plan (función simple)
       const { data: success, error: rpcError } = await supabase

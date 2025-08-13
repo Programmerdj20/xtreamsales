@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Calendar } from 'lucide-react';
+import { calculatePlanEndDate, formatDateForInput } from '../../lib/dateUtils';
 
 interface AddResellerModalProps {
   isOpen: boolean;
@@ -17,28 +18,6 @@ export interface ResellerFormData {
 }
 
 export function AddResellerModal({ isOpen, onClose, onSubmit }: AddResellerModalProps) {
-  // Función para calcular la fecha fin según el plan
-  const calculateEndDate = (plan: string) => {
-    const today = new Date();
-    switch (plan) {
-      case 'Demo (24 Hrs)':
-        return new Date(today.setDate(today.getDate() + 1));
-      case '1 Mes':
-        return new Date(today.setMonth(today.getMonth() + 1));
-      case '3 Meses':
-        return new Date(today.setMonth(today.getMonth() + 3));
-      case '6 Meses':
-        return new Date(today.setMonth(today.getMonth() + 6));
-      case '12 Meses':
-        return new Date(today.setMonth(today.getMonth() + 12));
-      default:
-        return today;
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
 
   const [formData, setFormData] = React.useState<ResellerFormData>({
     fullName: '',
@@ -46,7 +25,7 @@ export function AddResellerModal({ isOpen, onClose, onSubmit }: AddResellerModal
     password: '',
     phone: '',
     plan: '1 Mes',
-    endDate: formatDate(calculateEndDate('1 Mes'))
+    endDate: formatDateForInput(calculatePlanEndDate('1 Mes'))
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -146,7 +125,7 @@ export function AddResellerModal({ isOpen, onClose, onSubmit }: AddResellerModal
                 value={formData.plan}
                 onChange={(e) => {
                   const newPlan = e.target.value;
-                  const newEndDate = formatDate(calculateEndDate(newPlan));
+                  const newEndDate = formatDateForInput(calculatePlanEndDate(newPlan));
                   setFormData(prev => ({ 
                     ...prev, 
                     plan: newPlan,

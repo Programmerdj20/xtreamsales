@@ -13,6 +13,8 @@ import {
     UserCheck,
     AlertTriangle,
     UserX,
+    Download,
+    Upload,
 } from "lucide-react";
 import { RenewPlanModal } from "../../components/modals/RenewPlanModal";
 import {
@@ -23,6 +25,8 @@ import { SelectTemplateModal } from "../../components/resellers/SelectTemplateMo
 import { Template } from "../../types/template.types";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext"; // Para obtener el usuario actual
+import { ImportCSVModal } from "../../components/modals/ImportCSVModal";
+import { exportToCSV } from "../../lib/csvUtils";
 
 // Función para obtener datos de resumen (adaptada para revendedores)
 const getSummaryData = (clients: ClientData[]) => {
@@ -74,6 +78,9 @@ const ResellerClientsPage = () => {
     // Para renovación de plan
     const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
     const [clientToRenew, setClientToRenew] = useState<ClientData | null>(null);
+
+    // Para importación CSV
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
     // Para selección de plantilla
     const [isSelectTemplateOpen, setIsSelectTemplateOpen] = useState(false);
@@ -349,22 +356,84 @@ const ResellerClientsPage = () => {
         }
     };
 
+    // Función para exportar clientes a CSV
+    const handleExportCSV = () => {
+        try {
+            const dataToExport = filteredClients.length > 0 ? filteredClients : clients;
+            exportToCSV(dataToExport, `mis_clientes_${new Date().toISOString().split('T')[0]}.csv`);
+            toast.success(`${dataToExport.length} clientes exportados correctamente`);
+        } catch (error) {
+            console.error('Error al exportar CSV:', error);
+            toast.error('Error al exportar los datos');
+        }
+    };
+
+    // Función para importar clientes desde CSV
+    const handleImportCSV = async (clients: ClientFormData[]) => {
+        try {
+            let importedCount = 0;
+            let errorCount = 0;
+
+            for (const clientData of clients) {
+                try {
+                    await clientService.create(clientData);
+                    importedCount++;
+                } catch (error) {
+                    console.error(`Error al importar cliente ${clientData.cliente}:`, error);
+                    errorCount++;
+                }
+            }
+
+            if (importedCount > 0) {
+                toast.success(`${importedCount} clientes importados correctamente`);
+                fetchClients(); // Recargar la lista
+            }
+
+            if (errorCount > 0) {
+                toast.warning(`${errorCount} clientes no se pudieron importar`);
+            }
+
+            setIsImportModalOpen(false);
+        } catch (error) {
+            console.error('Error durante la importación:', error);
+            toast.error('Error durante la importación');
+        }
+    };
+
     return (
         <div className="container mx-auto p-4">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">
                     Gestión de Clientes del Revendedor
                 </h1>
-                <button
-                    className="bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"
-                    onClick={() => {
-                        setSelectedClient(null);
-                        setIsModalOpen(true);
-                    }}
-                >
-                    <PlusCircle className="w-4 h-4" />
-                    <span>Nuevo Cliente</span>
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleExportCSV}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"
+                        title="Exportar mis clientes a CSV"
+                    >
+                        <Download className="w-4 h-4" />
+                        <span>Exportar</span>
+                    </button>
+                    <button
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"
+                        title="Importar clientes desde CSV"
+                    >
+                        <Upload className="w-4 h-4" />
+                        <span>Importar</span>
+                    </button>
+                    <button
+                        className="bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"
+                        onClick={() => {
+                            setSelectedClient(null);
+                            setIsModalOpen(true);
+                        }}
+                    >
+                        <PlusCircle className="w-4 h-4" />
+                        <span>Nuevo Cliente</span>
+                    </button>
+                </div>
             </div>
 
             {/* Tarjetas de resumen */}
@@ -462,6 +531,13 @@ const ResellerClientsPage = () => {
                 onClose={() => setIsSelectTemplateOpen(false)}
                 onSelect={handleSendTemplate}
                 type={templateTypeToSend}
+            />
+
+            {/* Modal de importación CSV */}
+            <ImportCSVModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImport={handleImportCSV}
             />
         </div>
     );
