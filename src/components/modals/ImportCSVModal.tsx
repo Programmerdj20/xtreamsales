@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { ClientFormData } from '../../services/clients';
 import { validateCSVFile, parseCSV } from '../../lib/csvUtils';
+import { formatPrice } from '../../lib/priceUtils';
 
 interface ImportCSVModalProps {
   isOpen: boolean;
@@ -208,7 +209,7 @@ export function ImportCSVModal({ isOpen, onClose, onImport }: ImportCSVModalProp
                           <td className="p-2">{client.whatsapp}</td>
                           <td className="p-2">{client.plataforma}</td>
                           <td className="p-2">{client.plan}</td>
-                          <td className="p-2">${client.precio}</td>
+                          <td className="p-2">${formatPrice(client.precio)}</td>
                         </tr>
                       ))}
                     </tbody>

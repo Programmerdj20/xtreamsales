@@ -3,6 +3,7 @@ import { ClientData } from "../../services/clients";
 import { toast } from "sonner";
 import { openWhatsApp } from "../../services/reseller-actions";
 import { ClientActions } from "./ClientActions";
+import { formatPrice } from "../../lib/priceUtils";
 
 interface ClientsTableProps {
   clients: ClientData[];
@@ -133,7 +134,7 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({ clients, isLoading, 
                 </span>
               </td>
               <td className="p-3 text-right">
-                ${client.precio.toFixed(2)}
+                ${formatPrice(client.precio)}
               </td>
               <td className="p-2 text-right">
                 <ClientActions 

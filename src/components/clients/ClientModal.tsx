@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { ClientFormData, ClientData } from "../../services/clients";
-import { X, Calendar, DollarSign } from 'lucide-react';
+import { X, Calendar } from 'lucide-react';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { calculatePlanEndDate, formatDateForInput } from '../../lib/dateUtils';
+import { PlatformSelector } from '../ui/PlatformSelector';
+import { PriceInput } from '../ui/PriceInput';
 
 interface ClientModalProps {
   isOpen: boolean;
@@ -166,13 +168,10 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
               
               <div className="space-y-2">
                 <label className="text-sm font-medium">Plataforma</label>
-                <input
-                  type="text"
+                <PlatformSelector
                   value={formData.plataforma}
-                  onChange={(e) => setFormData({...formData, plataforma: e.target.value})}
-                  className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm hover:border-[#a855f7]/50 focus:border-[#a855f7]/50 transition-colors"
-                  placeholder="Tipo de plataforma"
-                  required
+                  onChange={(value) => setFormData({...formData, plataforma: value})}
+                  placeholder="Selecciona una plataforma"
                 />
               </div>
             </div>
@@ -192,18 +191,12 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
               
               <div className="space-y-2">
                 <label className="text-sm font-medium">Precio</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={formData.precio}
-                    onChange={(e) => setFormData({...formData, precio: parseFloat(e.target.value)})}
-                    className="w-full bg-background/50 border border-border/10 rounded-lg pl-9 pr-3 py-1.5 text-sm hover:border-[#a855f7]/50 focus:border-[#a855f7]/50 transition-colors"
-                    required
-                  />
-                </div>
+                <PriceInput
+                  value={formData.precio}
+                  onChange={(value) => setFormData({...formData, precio: value})}
+                  placeholder="0.00"
+                  required
+                />
               </div>
             </div>
             
