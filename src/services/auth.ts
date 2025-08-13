@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { updateUserStatus } from "./userStatusService";
 import { supabaseAdmin } from "./supabaseAdmin";
+import { canResellerAccess, getAccessDeniedMessage } from "../lib/resellerStatusUtils";
 
 export interface User {
     id: string;
@@ -319,7 +320,7 @@ export const authService = {
             );
 
             // Si hay error al obtener el perfil o no existe, usar los metadatos como respaldo
-            let role, status, full_name;
+            let role: "admin" | "reseller", status: "pending" | "active" | "inactive", full_name: string;
 
             if (profileError || !profileData) {
                 console.log("Usando metadatos como respaldo");
@@ -350,14 +351,14 @@ export const authService = {
             // Forzar una verificación adicional en la tabla resellers si es un revendedor
             if (role === "reseller") {
                 console.log(
-                    "Usuario es revendedor, verificando estado en tabla resellers"
+                    "Usuario es revendedor, verificando estado y vencimiento en tabla resellers"
                 );
                 try {
-                    // Intentar obtener el estado desde la tabla resellers
+                    // Intentar obtener el estado y fecha de vencimiento desde la tabla resellers
                     const { data: resellerData, error: resellerError } =
                         await supabase
                             .from("resellers")
-                            .select("status")
+                            .select("status, plan_end_date")
                             .or(
                                 `id.eq.${authData.user.id},user_id.eq.${authData.user.id}`
                             )
@@ -370,12 +371,24 @@ export const authService = {
                         resellerError
                     );
 
-                    // Si encontramos datos en la tabla resellers, usar ese estado
-                    if (!resellerError && resellerData && resellerData.status) {
+                    // Si encontramos datos en la tabla resellers, validar acceso
+                    if (!resellerError && resellerData) {
                         console.log(
                             "Usando estado de la tabla resellers:",
                             resellerData.status
                         );
+                        
+                        // Validar si el reseller puede acceder basado en la fecha de vencimiento
+                        if (resellerData.plan_end_date) {
+                            const canAccess = canResellerAccess(resellerData.plan_end_date, resellerData.status);
+                            
+                            if (!canAccess) {
+                                console.log("Acceso denegado por vencimiento o estado del reseller");
+                                const errorMessage = getAccessDeniedMessage(resellerData.plan_end_date, resellerData.status);
+                                throw new Error(errorMessage);
+                            }
+                        }
+                        
                         status = resellerData.status;
                     }
                 } catch (resellerCheckError) {
@@ -383,6 +396,12 @@ export const authService = {
                         "Error verificando estado en resellers:",
                         resellerCheckError
                     );
+                    // Si es un error de acceso denegado, re-lanzarlo
+                    if (resellerCheckError instanceof Error && 
+                        (resellerCheckError.message.includes("vencido") || 
+                         resellerCheckError.message.includes("pendiente"))) {
+                        throw resellerCheckError;
+                    }
                 }
             }
 
@@ -476,7 +495,7 @@ export const authService = {
             );
 
             // Si hay error al obtener el perfil o no existe, usar los metadatos como respaldo
-            let role, status, full_name;
+            let role: "admin" | "reseller", status: "pending" | "active" | "inactive", full_name: string;
 
             if (profileError || !profileData) {
                 console.log(

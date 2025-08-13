@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { Reseller } from "../types/database.types";
 import { v4 as uuidv4 } from 'uuid';
+import { calculateResellerStatus } from "../lib/resellerStatusUtils";
 
 // (Eliminada interfaz ResellerWithPassword porque no se utiliza)
 
@@ -145,103 +146,22 @@ export const resellerService = {
                     ...resellerData
                 } : profile;
 
+                // Calcular estado dinámico basado en fecha de vencimiento
+                let finalStatus = baseData.status;
+                if (baseData.plan_end_date) {
+                    const statusInfo = calculateResellerStatus(baseData.plan_end_date, baseData.status);
+                    finalStatus = statusInfo.status;
+                }
+
                 return {
                     ...baseData,
+                    status: finalStatus,
                     clients_count: clientCountMap[profile.id] || 0
                 };
             });
 
             console.log('Resultado final con conteo de clientes:', result);
             return result;
-        } catch (error) {
-            console.error("Error inesperado al obtener revendedores:", error);
-            return [];
-        }
-        // Removed erroneous closing brace here
-        console.log('DEPURACIÓN - Fetching resellers... forceReload:', forceReload);
-        
-        try {
-            // Primero, obtener todos los perfiles con rol 'reseller'
-            console.log('Obteniendo perfiles con rol reseller...');
-            const { data: profilesData, error: profilesError }: { data: (Reseller & { role?: string })[] | null; error: { message?: string } | null } = await supabase
-                .rpc('get_all_profiles');
-                
-            if (profilesError || !Array.isArray(profilesData)) {
-                console.error('Error al obtener perfiles con RPC:', profilesError);
-                return [];
-            }
-            
-            // Filtrar solo los perfiles con rol 'reseller'
-            const resellerProfiles = profilesData.filter((p) => 
-                p && p.role === 'reseller' && 
-                resellersData?.some(r => r.id === p.id)
-            );
-            console.log(`Encontrados ${resellerProfiles.length} perfiles de revendedores`);
-            
-            // Obtener datos de la tabla resellers usando RPC
-            console.log('Obteniendo datos de resellers...');
-            const { data: resellersData, error: resellersError }: { data: Reseller[] | null; error: { message?: string } | null } = await supabase
-                .rpc('get_all_resellers');
-                
-            // Si hay un error al obtener resellers, usar solo los perfiles
-            if (resellersError || !Array.isArray(resellersData)) {
-                console.error('Error al obtener resellers con RPC:', resellersError);
-                console.log('Usando solo datos de perfiles para revendedores');
-                
-                return resellerProfiles.map((profile) => ({
-                    id: profile.id,
-                    user_id: profile.id,
-                    created_at: profile.created_at,
-                    full_name: profile.full_name || 'Sin nombre',
-                    email: profile.email || 'sin-email@ejemplo.com',
-                    phone: profile.phone || "",
-                    plan_type: "Basic",
-                    plan_end_date: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
-                    status: profile.status || 'pending',
-                })) as Reseller[];
-            }
-            
-            console.log(`Encontrados ${resellersData?.length || 0} registros en tabla resellers`);
-            
-            // Combinar datos de perfiles y resellers
-            const result = resellerProfiles.map(profile => {
-                // Buscar datos correspondientes en la tabla resellers
-                const resellerData = resellersData?.find(r => 
-                    (r.id === profile.id || r.user_id === profile.id)
-                );
-                
-                // Si encontramos datos en resellers, combinarlos con el perfil
-                if (resellerData) {
-                    return {
-                        ...resellerData,
-                        id: resellerData.id || profile.id,
-                        user_id: resellerData.user_id || profile.id,
-                        full_name: profile.full_name || resellerData.full_name || 'Sin nombre',
-                        email: profile.email || resellerData.email || 'sin-email@ejemplo.com',
-                        phone: resellerData.phone || profile.phone || "",
-                        plan_type: resellerData.plan_type || "Basic",
-                        plan_end_date: resellerData.plan_end_date || new Date(Date.now() + 30*24*60*60*1000).toISOString(),
-                        status: profile.status || resellerData.status || 'pending',
-                    };
-                } 
-                // Si no hay datos en resellers, crear un objeto con datos básicos del perfil
-                else {
-                    return {
-                        id: profile.id,
-                        user_id: profile.id,
-                        created_at: profile.created_at,
-                        full_name: profile.full_name || 'Sin nombre',
-                        email: profile.email || 'sin-email@ejemplo.com',
-                        phone: profile.phone || "",
-                        plan_type: "Basic",
-                        plan_end_date: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
-                        status: profile.status || 'pending',
-                    };
-                }
-            });
-            
-            console.log(`Devolviendo ${result.length} revendedores`);
-            return result as Reseller[];
         } catch (error) {
             console.error("Error inesperado al obtener revendedores:", error);
             return [];
