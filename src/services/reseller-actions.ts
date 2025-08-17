@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { resellerService } from './resellers';
 import { templateService } from './templates';
 import { planToMonths } from '../lib/dateUtils';
+import { syncResellerStatus } from '../lib/syncUserStatus';
 
 export const replaceVariables = (template: string, variables: Record<string, string>) => {
   return template.replace(/\{([^}]+)\}/g, (_, key) => {
@@ -121,9 +122,20 @@ export const resellerActionsService = {
       
       console.log('Plan renovado correctamente');
       
-      // Obtener los datos actualizados del revendedor usando update_reseller_info
-      // Esta función ya ha sido probada y funciona correctamente
+      // Obtener los datos actualizados del revendedor
       const reseller = await resellerService.getById(id);
+      
+      // Sincronizar automáticamente el estado entre resellers y profiles
+      // Al renovar, el reseller debe quedar activo automáticamente
+      if (reseller && reseller.plan_end_date) {
+        try {
+          console.log('Sincronizando estado después de renovación para reseller:', id);
+          await syncResellerStatus(id, reseller.plan_end_date, reseller.status);
+        } catch (syncError) {
+          console.error('Error sincronizando estado después de renovación:', syncError);
+          // No fallar la renovación por error de sincronización
+        }
+      }
       
       return reseller;
     } catch (error) {

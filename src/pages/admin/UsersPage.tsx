@@ -99,7 +99,56 @@ export default function UsersPage() {
                 const uniqueUsers = Array.from(new Map(rpcData.map(user => [user.id, user])).values()) as User[];
                 console.log('Usuarios únicos de RPC:', uniqueUsers.length);
                 
-                setUsers(uniqueUsers);
+                // Obtener fechas de vencimiento para resellers usando RPC
+                const resellerIds = uniqueUsers.filter(u => u.role === 'reseller').map(u => u.id);
+                let resellerDates: { [key: string]: string } = {};
+                
+                if (resellerIds.length > 0) {
+                    const { data: resellersData, error: resellersError } = await supabase
+                        .rpc('get_all_resellers');
+                    
+                    console.log('Resellers data:', resellersData, 'Error:', resellersError);
+                    
+                    if (resellersData && Array.isArray(resellersData)) {
+                        resellersData.forEach(r => {
+                            if (r.plan_end_date && resellerIds.includes(r.id)) {
+                                resellerDates[r.id] = r.plan_end_date;
+                            }
+                        });
+                    }
+                }
+                
+                // Para resellers, verificar si están vencidos y actualizar estado real
+                const usersWithCorrectStatus = await Promise.all(uniqueUsers.map(async user => {
+                    if (user.role === 'reseller' && resellerDates[user.id]) {
+                        const endDate = new Date(resellerDates[user.id]);
+                        const now = new Date();
+                        const isExpired = endDate < now;
+                        
+                        // Si está vencido pero su estado no es 'inactive', actualizarlo en BD
+                        if (isExpired && user.status !== 'inactive') {
+                            try {
+                                console.log(`Actualizando reseller vencido ${user.id} a inactive`);
+                                await supabase.rpc("update_user_status", {
+                                    input_user_id: user.id,
+                                    new_status: 'inactive'
+                                });
+                                return { ...user, status: 'inactive' };
+                            } catch (error) {
+                                console.error(`Error actualizando reseller ${user.id}:`, error);
+                                return { ...user, status: 'inactive' }; // Al menos mostrar como inactive
+                            }
+                        }
+                        
+                        return {
+                            ...user,
+                            status: isExpired ? 'inactive' : user.status
+                        };
+                    }
+                    return user;
+                }));
+                
+                setUsers(usersWithCorrectStatus);
                 
                 // Contar usuarios pendientes
                 const pendingUsers = uniqueUsers.filter(user => user.status === 'pending') || [];

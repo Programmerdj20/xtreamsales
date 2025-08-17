@@ -354,15 +354,12 @@ export const authService = {
                     "Usuario es revendedor, verificando estado y vencimiento en tabla resellers"
                 );
                 try {
-                    // Intentar obtener el estado y fecha de vencimiento desde la tabla resellers
+                    // Intentar obtener el estado y fecha de vencimiento usando RPC
                     const { data: resellerData, error: resellerError } =
                         await supabase
-                            .from("resellers")
-                            .select("status, plan_end_date")
-                            .or(
-                                `id.eq.${authData.user.id},user_id.eq.${authData.user.id}`
-                            )
-                            .maybeSingle();
+                            .rpc("get_reseller_by_id", {
+                                reseller_id: authData.user.id
+                            });
 
                     console.log(
                         "Datos del revendedor:",
@@ -378,12 +375,24 @@ export const authService = {
                             resellerData.status
                         );
                         
-                        // Validar si el reseller puede acceder basado en la fecha de vencimiento
+                        // Primero verificar si el estado actual permite acceso
+                        if (resellerData.status === "inactive" || resellerData.status === "pending" || resellerData.status === "expired") {
+                            console.log("Acceso denegado por estado del reseller:", resellerData.status);
+                            if (resellerData.status === "pending") {
+                                throw new Error("Tu cuenta está pendiente de activación por el administrador. Por favor, espera a que tu cuenta sea activada.");
+                            } else if (resellerData.status === "expired") {
+                                throw new Error("Tu plan ha sido marcado como vencido por el administrador. Por favor, contacta al administrador para renovar tu suscripción.");
+                            } else {
+                                throw new Error("Tu cuenta ha sido desactivada por el administrador. Por favor, contacta al administrador para más información.");
+                            }
+                        }
+                        
+                        // Luego validar si el reseller puede acceder basado en la fecha de vencimiento
                         if (resellerData.plan_end_date) {
                             const canAccess = canResellerAccess(resellerData.plan_end_date, resellerData.status);
                             
                             if (!canAccess) {
-                                console.log("Acceso denegado por vencimiento o estado del reseller");
+                                console.log("Acceso denegado por vencimiento del plan");
                                 const errorMessage = getAccessDeniedMessage(resellerData.plan_end_date, resellerData.status);
                                 throw new Error(errorMessage);
                             }
@@ -524,6 +533,31 @@ export const authService = {
                 role = profileData.role;
                 status = profileData.status;
                 full_name = profileData.full_name;
+            }
+
+            // Si es reseller, verificar también el estado en la tabla resellers y validar acceso
+            if (role === "reseller") {
+                try {
+                    const { data: resellerData, error: resellerError } = await supabase
+                        .from("resellers")
+                        .select("status, plan_end_date")
+                        .or(`id.eq.${session.user.id},user_id.eq.${session.user.id}`)
+                        .maybeSingle();
+
+                    if (!resellerError && resellerData) {
+                        // Verificar si el estado actual permite acceso
+                        if (resellerData.status === "inactive" || resellerData.status === "pending" || resellerData.status === "expired") {
+                            console.log("Usuario actual tiene estado restringido:", resellerData.status);
+                            // Para getCurrentUser, solo retornamos null si está completamente bloqueado
+                            // Esto permite que el sistema pueda mostrar mensajes apropiados
+                        }
+                        
+                        // Usar el estado de la tabla resellers como fuente de verdad
+                        status = resellerData.status;
+                    }
+                } catch (resellerCheckError) {
+                    console.error("Error verificando estado de reseller en getCurrentUser:", resellerCheckError);
+                }
             }
 
             console.log("Estado final del usuario actual:", {

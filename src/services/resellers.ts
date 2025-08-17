@@ -2,6 +2,7 @@ import { supabase } from "../lib/supabase";
 import { Reseller } from "../types/database.types";
 import { v4 as uuidv4 } from 'uuid';
 import { calculateResellerStatus } from "../lib/resellerStatusUtils";
+import { syncResellerStatus } from "../lib/syncUserStatus";
 
 // (Eliminada interfaz ResellerWithPassword porque no se utiliza)
 
@@ -136,7 +137,7 @@ export const resellerService = {
             }, {} as Record<string, number>);
 
             // Combinar datos de perfiles, resellers y conteo de clientes
-            const result = resellerProfiles.map(profile => {
+            const result = await Promise.all(resellerProfiles.map(async profile => {
                 const resellerData = resellersData.find(r =>
                     (r.id === profile.id || r.user_id === profile.id)
                 );
@@ -151,6 +152,11 @@ export const resellerService = {
                 if (baseData.plan_end_date) {
                     const statusInfo = calculateResellerStatus(baseData.plan_end_date, baseData.status);
                     finalStatus = statusInfo.status;
+                    
+                    // Solo mostrar el estado calculado, sin sincronización automática
+                    if (finalStatus !== baseData.status) {
+                        console.log(`Estado calculado dinámicamente: ${baseData.status} → ${finalStatus} para reseller ${baseData.id}`);
+                    }
                 }
 
                 return {
@@ -158,7 +164,7 @@ export const resellerService = {
                     status: finalStatus,
                     clients_count: clientCountMap[profile.id] || 0
                 };
-            });
+            }));
 
             console.log('Resultado final con conteo de clientes:', result);
             return result;
@@ -251,6 +257,30 @@ export const resellerService = {
         if (updates.email) {
             await supabase.from('profiles').update({ email: updates.email }).eq('id', id);
         }
+        // Después de actualizar, sincronizar estado si cambió la fecha
+        if (plan_end_date) {
+            try {
+                // Calcular el estado que debería tener basado en la nueva fecha
+                const statusInfo = calculateResellerStatus(plan_end_date);
+                const dbStatus = statusInfo.status === "expired" ? "inactive" : statusInfo.status;
+                
+                // Solo actualizar si el estado cambió
+                const currentReseller = await resellerService.getById(id);
+                if (currentReseller && currentReseller.status !== dbStatus) {
+                    console.log(`Sincronizando estado después de edición: ${currentReseller.status} → ${dbStatus}`);
+                    
+                    // Usar la función RPC que actualiza ambas tablas
+                    await supabase.rpc("update_user_status", {
+                        input_user_id: id,
+                        new_status: dbStatus
+                    });
+                }
+            } catch (syncError) {
+                console.error("Error sincronizando estado después de edición:", syncError);
+                // No fallar la actualización por error de sincronización
+            }
+        }
+        
         // Retornar el reseller actualizado
         return await resellerService.getById(id);
     },
