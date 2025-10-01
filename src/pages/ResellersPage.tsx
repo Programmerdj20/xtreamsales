@@ -451,7 +451,7 @@ const ResellersPage = () => {
                     phone: selectedReseller.phone,
                     // phoneCountry is not in Reseller type; ResellerModal will use its default if needed
                     plan: selectedReseller.plan_type,
-                    endDate: selectedReseller.plan_end_date,
+                    endDate: selectedReseller.plan_end_date ? new Date(selectedReseller.plan_end_date).toISOString().split('T')[0] : '',
                 } : undefined}
             />
             {/* Modal de Renovación de Plan */}

@@ -40,7 +40,7 @@ export function ClientActions({
       <DropdownMenuContent align="end" className="w-[160px]">
         <DropdownMenuItem onClick={onEdit} className="cursor-pointer">
           <Pencil className="mr-2 h-4 w-4" />
-          <span>Editar Cliente</span>
+          <span>Ver/Editar Cliente</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onRenew} className="cursor-pointer">
           <RotateCw className="mr-2 h-4 w-4" />

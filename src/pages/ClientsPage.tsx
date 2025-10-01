@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { ClientsTable } from "../components/clients/ClientsTable";
 import { ClientModal } from "../components/clients/ClientModal";
@@ -90,6 +90,8 @@ const ClientsPage = () => {
 
     // Para selección de plantilla
     const [isSelectTemplateOpen, setIsSelectTemplateOpen] = useState(false);
+
+    const summaryData = useMemo(() => getSummaryData(clients), [clients]);
     const [templateTypeToSend, setTemplateTypeToSend] = useState<
         null | "credenciales" | "recordatorio"
     >(null);
@@ -134,57 +136,56 @@ const ClientsPage = () => {
     };
 
     // Cargar clientes
-    const fetchClients = async () => {
+    const fetchClients = useCallback(async () => {
+        console.log('🔄 FETCHCLIENTS LLAMADO - timestamp:', new Date().toLocaleTimeString());
         setIsLoading(true);
         try {
             const data = await clientService.getAll();
+            console.log('📊 DATOS OBTENIDOS:', data.length, 'clientes');
+            console.log('🔍 DATOS DETALLADOS:', data.map(c => ({id: c.id, cliente: c.cliente, plan: c.plan, fecha_fin: c.fecha_fin})));
             setClients(data);
-            filterClients(data, searchTerm, statusFilter, ownerFilter);
+            console.log('✅ CLIENTES SETEADOS EN ESTADO');
         } catch (error) {
             console.error("Error al cargar clientes:", error);
             toast.error("Error al cargar los clientes");
         } finally {
             setIsLoading(false);
+            console.log('🏁 FETCHCLIENTS TERMINADO');
         }
-    };
+    }, []);
 
     // Función para filtrar clientes según búsqueda, estado y propietario
-    const filterClients = (
-        clientsList: ClientData[],
-        search: string,
-        status: string,
-        owner: string
-    ) => {
-        const filtered = clientsList.filter((client) => {
+    const filterClients = useCallback(() => {
+        const filtered = clients.filter((client) => {
             // Filtro por búsqueda
-            const matchesSearch = search
+            const matchesSearch = searchTerm
                 ? client.cliente
                       ?.toLowerCase()
-                      .includes(search.toLowerCase()) ||
+                      .includes(searchTerm.toLowerCase()) ||
                   client.whatsapp
                       ?.toLowerCase()
-                      .includes(search.toLowerCase()) ||
+                      .includes(searchTerm.toLowerCase()) ||
                   (client.usuario
                       ? client.usuario
                             .toLowerCase()
-                            .includes(search.toLowerCase())
+                            .includes(searchTerm.toLowerCase())
                       : false)
                 : true;
 
             // Filtro por estado
-            const matchesStatus = status === "all" || client.status === status;
+            const matchesStatus = statusFilter === "all" || client.status === statusFilter;
 
             // Filtro por propietario
             const matchesOwner =
-                owner === "all" ||
-                (owner === "admin" && !client.owner_id) ||
-                client.owner_id === owner;
+                ownerFilter === "all" ||
+                (ownerFilter === "admin" && !client.owner_id) ||
+                client.owner_id === ownerFilter;
 
             return matchesSearch && matchesStatus && matchesOwner;
         });
 
         setFilteredClients(filtered);
-    };
+    }, [clients, searchTerm, statusFilter, ownerFilter]);
 
     // Efecto para cargar datos iniciales
     useEffect(() => {
@@ -192,13 +193,18 @@ const ClientsPage = () => {
         fetchResellers();
     }, []);
 
+    // Efecto para filtrar cuando cambian los criterios
+    useEffect(() => {
+        filterClients();
+    }, [filterClients]);
+
     // Efecto para la suscripción a cambios en tiempo real en la tabla de clientes
     useEffect(() => {
         const channel = supabase
-            .channel("custom-clients-channel") // Nombre único para el canal
+            .channel("custom-clients-channel")
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "clients" }, // Escuchar todos los eventos
+                { event: "*", schema: "public", table: "clients" },
                 (payload) => {
                     console.log(
                         "Cambio en tiempo real recibido en la tabla clients:",
@@ -207,7 +213,7 @@ const ClientsPage = () => {
                     toast.info("Actualizando lista de clientes...", {
                         duration: 2000,
                     });
-                    fetchClients(); // Vuelve a cargar los datos
+                    fetchClients();
                 }
             )
             .subscribe((status, err) => {
@@ -225,39 +231,44 @@ const ClientsPage = () => {
                 }
             });
 
-        // Función de limpieza para remover la suscripción
         return () => {
             supabase.removeChannel(channel);
             console.log("Desconectado de Supabase Realtime para clientes.");
         };
-    }, []); // Se ejecuta una vez para suscribirse
-
-    // Efecto para filtrar cuando cambian los criterios
-    useEffect(() => {
-        filterClients(clients, searchTerm, statusFilter, ownerFilter);
-    }, [clients, searchTerm, statusFilter, ownerFilter]);
+    }, [fetchClients]);
 
     // Handler para guardar cliente
-    const handleSaveClient = async (data: ClientFormData) => {
+    const handleSaveClient = useCallback(async (data: ClientFormData) => {
+        console.log('💾 INICIANDO GUARDADO - timestamp:', new Date().toLocaleTimeString());
+        console.log('📝 DATOS A GUARDAR:', data);
+        console.log('👤 CLIENTE SELECCIONADO:', selectedClient?.id, selectedClient?.cliente);
         try {
             if (selectedClient) {
                 // Actualizar cliente existente
+                console.log('🔄 ACTUALIZANDO CLIENTE EXISTENTE:', selectedClient.id);
                 await clientService.update(selectedClient.id, data);
+                console.log('✅ CLIENTE ACTUALIZADO EN BD');
                 toast.success("Cliente actualizado correctamente");
             } else {
                 // Crear nuevo cliente
+                console.log('➕ CREANDO NUEVO CLIENTE');
                 await clientService.create(data);
+                console.log('✅ CLIENTE CREADO EN BD');
                 toast.success("Cliente creado correctamente");
             }
+            console.log('🏠 CERRANDO MODAL');
             setIsModalOpen(false);
+            setSelectedClient(null);
+            console.log('🔄 LLAMANDO FETCHCLIENTS DESPUÉS DE GUARDAR');
             fetchClients();
+            console.log('💾 GUARDADO COMPLETADO');
         } catch (error) {
             console.error("Error al guardar cliente:", error);
             toast.error("Error al guardar el cliente");
         }
-    };
+    }, [selectedClient, fetchClients]);
 
-    const handleDeleteClient = async (id: string) => {
+    const handleDeleteClient = useCallback(async (id: string) => {
         try {
             await clientService.delete(id);
             toast.success("Cliente eliminado correctamente");
@@ -266,10 +277,10 @@ const ClientsPage = () => {
             console.error("Error al eliminar cliente:", error);
             toast.error("Error al eliminar el cliente");
         }
-    };
+    }, [fetchClients]);
 
     // Función para manejar la renovación del plan
-    const handleRenewPlan = async (plan: string) => {
+    const handleRenewPlan = useCallback(async (plan: string) => {
         if (!clientToRenew) return;
 
         try {
@@ -283,12 +294,13 @@ const ClientsPage = () => {
                 `Plan renovado exitosamente a ${plan}`
             );
             setIsRenewModalOpen(false);
-            fetchClients(); // Recargar la lista de clientes
+            setClientToRenew(null);
+            fetchClients();
         } catch (error) {
             console.error("Error al renovar plan:", error);
             toast.error("Error al renovar el plan");
         }
-    };
+    }, [clientToRenew, fetchClients]);
 
     // Función para manejar el envío de plantillas
     const handleSendTemplate = async (template: Template) => {

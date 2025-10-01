@@ -3,9 +3,11 @@ import { ClientFormData, ClientData } from "../../services/clients";
 import { X, Calendar } from 'lucide-react';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
-import { calculatePlanEndDate, formatDateForInput } from '../../lib/dateUtils';
+import { formatDateForInput } from '../../lib/dateUtils';
 import { PlatformSelector } from '../ui/PlatformSelector';
 import { PriceInput } from '../ui/PriceInput';
+import { PlanSelector } from '../ui/PlanSelector';
+import { planService } from '../../services/plans';
 
 interface ClientModalProps {
   isOpen: boolean;
@@ -21,8 +23,11 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
     const today = new Date();
     const todayFormatted = formatDateForInput(today);
     const defaultPlan = '1 Mes';
-    const defaultEndDate = formatDateForInput(calculatePlanEndDate(defaultPlan));
-    
+    // Fecha de fin por defecto: 1 mes desde hoy
+    const defaultEndDate = new Date(today);
+    defaultEndDate.setMonth(defaultEndDate.getMonth() + 1);
+    const defaultEndDateFormatted = formatDateForInput(defaultEndDate);
+
     return client ? {
       cliente: client.cliente,
       whatsapp: client.whatsapp,
@@ -47,7 +52,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
       usuario: "",
       contraseña: "",
       fecha_inicio: todayFormatted,
-      fecha_fin: defaultEndDate,
+      fecha_fin: defaultEndDateFormatted,
       status: "active",
       observacion: "",
       plan: defaultPlan
@@ -58,8 +63,8 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
   useEffect(() => {
     if (client) {
       const defaultPlan = client.plan || '1 Mes';
-      const endDate = client.fecha_fin || formatDateForInput(calculatePlanEndDate(defaultPlan));
-      
+      const endDate = client.fecha_fin;
+
       setFormData({
         cliente: client.cliente,
         whatsapp: client.whatsapp,
@@ -79,8 +84,10 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
       const today = new Date();
       const todayFormatted = formatDateForInput(today);
       const defaultPlan = '1 Mes';
-      const defaultEndDate = formatDateForInput(calculatePlanEndDate(defaultPlan));
-      
+      const defaultEndDate = new Date(today);
+      defaultEndDate.setMonth(defaultEndDate.getMonth() + 1);
+      const defaultEndDateFormatted = formatDateForInput(defaultEndDate);
+
       setFormData({
         cliente: "",
         whatsapp: "",
@@ -91,7 +98,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
         usuario: "",
         contraseña: "",
         fecha_inicio: todayFormatted,
-        fecha_fin: defaultEndDate,
+        fecha_fin: defaultEndDateFormatted,
         status: "active",
         observacion: "",
         plan: defaultPlan
@@ -228,28 +235,43 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
             
             <div className="space-y-2">
               <label className="text-sm font-medium">Plan de Suscripción</label>
-              <select
+              <PlanSelector
                 value={formData.plan}
-                onChange={(e) => {
-                  const newPlan = e.target.value;
-                  // Calcular la nueva fecha de fin basada en el plan seleccionado
-                  const newEndDate = formatDateForInput(calculatePlanEndDate(newPlan));
-                  
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    plan: newPlan,
-                    fecha_fin: newEndDate // Actualizar automáticamente la fecha de fin
-                  }));
+                onChange={async (newPlan) => {
+                  try {
+                    // Obtener los meses del plan desde Supabase
+                    const months = await planService.getMonthsByName(newPlan);
+
+                    // Calcular la nueva fecha de fin
+                    const startDate = formData.fecha_inicio ? new Date(formData.fecha_inicio) : new Date();
+                    const endDate = new Date(startDate);
+
+                    if (months === 0) {
+                      // Demo 24 horas
+                      endDate.setDate(endDate.getDate() + 1);
+                    } else {
+                      endDate.setMonth(endDate.getMonth() + months);
+                    }
+
+                    const newEndDate = formatDateForInput(endDate);
+
+                    // Usar callback para asegurar actualización atómica
+                    setFormData(prev => ({
+                      ...prev,
+                      plan: newPlan,
+                      fecha_fin: newEndDate
+                    }));
+                  } catch (error) {
+                    console.error('Error calculando fecha:', error);
+                    // En caso de error, solo actualizar el plan
+                    setFormData(prev => ({
+                      ...prev,
+                      plan: newPlan
+                    }));
+                  }
                 }}
-                className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm [&>option]:bg-[#0e121d]"
-                required
-              >
-                <option>1 Mes</option>
-                <option>3 Meses</option>
-                <option>6 Meses</option>
-                <option>12 Meses</option>
-                <option>Demo (24 Hrs)</option>
-              </select>
+                placeholder="Selecciona un plan"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -25,3 +25,19 @@ export interface NewReseller {
 export interface ResellerWithPassword extends NewReseller {
     password: string;
 }
+
+export interface SubscriptionPlan {
+    id: string;
+    name: string;
+    months: number;
+    price: number;
+    is_custom: boolean;
+    created_at?: string;
+}
+
+export interface NewSubscriptionPlan {
+    name: string;
+    months: number;
+    price: number;
+    is_custom?: boolean;
+}

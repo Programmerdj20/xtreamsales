@@ -178,10 +178,10 @@ const ResellerClientsPage = () => {
 
     // Efecto para la suscripción a cambios en tiempo real en la tabla de clientes
     useEffect(() => {
-        if (!user?.id) return; // No suscribirse si no hay usuario
+        if (!user?.id) return;
 
         const channel = supabase
-            .channel(`reseller-clients-${user.id}-channel`) // Canal único por revendedor
+            .channel(`reseller-clients-${user.id}-channel`)
             .on(
                 "postgres_changes",
                 {
@@ -189,7 +189,7 @@ const ResellerClientsPage = () => {
                     schema: "public",
                     table: "clients",
                     filter: `owner_id=eq.${user.id}`,
-                }, // Escuchar solo cambios para este revendedor
+                },
                 (payload) => {
                     console.log(
                         "Cambio en tiempo real recibido en la tabla clients para revendedor:",
@@ -198,7 +198,7 @@ const ResellerClientsPage = () => {
                     toast.info("Actualizando lista de clientes...", {
                         duration: 2000,
                     });
-                    fetchClients(); // Vuelve a cargar los datos
+                    fetchClients();
                 }
             )
             .subscribe((status, err) => {
@@ -218,14 +218,13 @@ const ResellerClientsPage = () => {
                 }
             });
 
-        // Función de limpieza para remover la suscripción
         return () => {
             supabase.removeChannel(channel);
             console.log(
                 "Desconectado de Supabase Realtime para clientes del revendedor."
             );
         };
-    }, [user?.id]); // Se ejecuta cuando el ID del usuario cambia
+    }, [user?.id]);
 
     // Efecto para filtrar cuando cambian los criterios
     useEffect(() => {
@@ -251,6 +250,7 @@ const ResellerClientsPage = () => {
                 toast.success("Cliente creado correctamente");
             }
             setIsModalOpen(false);
+            setSelectedClient(null);
             fetchClients();
         } catch (error) {
             console.error("Error al guardar cliente:", error);
@@ -284,7 +284,8 @@ const ResellerClientsPage = () => {
                 `Plan renovado exitosamente a ${plan}`
             );
             setIsRenewModalOpen(false);
-            fetchClients(); // Recargar la lista de clientes
+            setClientToRenew(null);
+            fetchClients();
         } catch (error) {
             console.error("Error al renovar plan:", error);
             toast.error("Error al renovar el plan");

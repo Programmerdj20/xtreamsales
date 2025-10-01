@@ -2,6 +2,8 @@ import React from 'react';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import { X, Calendar } from 'lucide-react';
+import { PlanSelector } from '../ui/PlanSelector';
+import { calculatePlanEndDateAsync } from '../../lib/dateUtils';
 
 interface ResellerModalProps {
   isOpen: boolean;
@@ -27,37 +29,10 @@ export interface ResellerData extends Omit<ResellerFormData, 'password'> {
 
 export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerModalProps) {
   const [showPassword, setShowPassword] = React.useState(false);
-  // Función para calcular la fecha fin según el plan
-  const calculateEndDate = (plan: string) => {
-    const today = new Date();
-    let result;
-    
-    switch (plan) {
-      case 'Demo (24 Hrs)':
-        result = new Date(today);
-        result.setDate(today.getDate() + 1);
-        break;
-      case '1 Mes':
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 1);
-        break;
-      case '3 Meses':
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 3);
-        break;
-      case '6 Meses':
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 6);
-        break;
-      case '12 Meses':
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 12);
-        break;
-      default:
-        result = new Date(today);
-        result.setMonth(today.getMonth() + 1); // Por defecto 1 mes
-    }
-    
+  
+  // Función asíncrona para calcular la fecha fin según el plan usando dateUtils
+  const calculateEndDate = async (plan: string): Promise<Date> => {
+    const result = await calculatePlanEndDateAsync(plan);
     console.log(`Calculando fecha fin para plan ${plan}: ${result.toISOString()}`);
     return result;
   };
@@ -66,57 +41,54 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
     return date.toISOString().split('T')[0];
   };
 
-  const [formData, setFormData] = React.useState<ResellerFormData>(() => {
-    // Calcular la fecha de fin para el plan por defecto (1 Mes)
-    const defaultEndDate = formatDate(calculateEndDate('1 Mes'));
-    console.log('Inicializando formulario con fecha de fin por defecto:', defaultEndDate);
-    
-    return {
-      fullName: reseller?.fullName || '',
-      email: reseller?.email || '',
-      password: '', // Vacío en modo edición
-      phone: reseller?.phone || '',
-      phoneCountry: reseller?.phoneCountry || 'co',
-      plan: reseller?.plan || '1 Mes',
-      endDate: reseller?.endDate || defaultEndDate
-    };
+  const [formData, setFormData] = React.useState<ResellerFormData>({
+    fullName: reseller?.fullName || '',
+    email: reseller?.email || '',
+    password: '', // Vacío en modo edición
+    phone: reseller?.phone || '',
+    phoneCountry: reseller?.phoneCountry || 'co',
+    plan: reseller?.plan || '1 Mes',
+    endDate: reseller?.endDate || '' // Se calculará en useEffect
   });
 
   React.useEffect(() => {
-    // Siempre calcular la fecha de fin para el plan seleccionado
-    const calculateDefaultEndDate = (plan: string) => {
-      return formatDate(calculateEndDate(plan || '1 Mes'));
+    const calculateDefaultEndDate = async (plan: string) => {
+      const endDate = await calculateEndDate(plan || '1 Mes');
+      return formatDate(endDate);
     };
     
-    if (reseller) {
-      // Modo edición
-      const endDate = calculateDefaultEndDate(reseller.plan);
-      console.log('Fecha calculada para edición:', endDate);
-      
-      setFormData({
-        fullName: reseller.fullName,
-        email: reseller.email,
-        password: '', // Vacío en modo edición
-        phone: reseller.phone || '',
-        phoneCountry: reseller.phoneCountry || 'co',
-        plan: reseller.plan || '1 Mes',
-        endDate: endDate // Usar la fecha calculada
-      });
-    } else {
-      // Modo creación - Calcular la fecha de fin para 1 mes por defecto
-      const defaultEndDate = calculateDefaultEndDate('1 Mes');
-      console.log('Fecha de fin por defecto para nuevo revendedor:', defaultEndDate);
-      
-      setFormData({
-        fullName: '',
-        email: '',
-        password: '',
-        phone: '',
-        phoneCountry: 'co',
-        plan: '1 Mes',
-        endDate: defaultEndDate
-      });
-    }
+    const initializeData = async () => {
+      if (reseller) {
+        // Modo edición - USAR LA FECHA EXISTENTE, NO RECALCULAR
+        console.log('Modo edición - usando fecha existente:', reseller.endDate);
+        
+        setFormData({
+          fullName: reseller.fullName,
+          email: reseller.email,
+          password: '', // Vacío en modo edición
+          phone: reseller.phone || '',
+          phoneCountry: reseller.phoneCountry || 'co',
+          plan: reseller.plan || '1 Mes',
+          endDate: reseller.endDate || formatDate(new Date()) // Usar fecha existente
+        });
+      } else {
+        // Modo creación - Calcular la fecha de fin para 1 mes por defecto
+        const defaultEndDate = await calculateDefaultEndDate('1 Mes');
+        console.log('Fecha de fin por defecto para nuevo revendedor:', defaultEndDate);
+        
+        setFormData({
+          fullName: '',
+          email: '',
+          password: '',
+          phone: '',
+          phoneCountry: 'co',
+          plan: '1 Mes',
+          endDate: defaultEndDate
+        });
+      }
+    };
+    
+    initializeData();
   }, [reseller]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -247,12 +219,11 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
               <label className="text-sm font-medium">
                 Plan de Suscripción
               </label>
-              <select
+              <PlanSelector
                 value={formData.plan}
-                onChange={(e) => {
-                  const newPlan = e.target.value;
+                onChange={async (newPlan) => {
                   // Calcular la nueva fecha de fin basada en el plan seleccionado
-                  const newEndDate = formatDate(calculateEndDate(newPlan));
+                  const newEndDate = formatDate(await calculateEndDate(newPlan));
                   
                   setFormData(prev => ({ 
                     ...prev, 
@@ -260,15 +231,8 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
                     endDate: newEndDate // Actualizar automáticamente la fecha de fin
                   }));
                 }}
-                className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm [&>option]:bg-[#0e121d]"
-                required
-              >
-                <option>1 Mes</option>
-                <option>3 Meses</option>
-                <option>6 Meses</option>
-                <option>12 Meses</option>
-                <option>Demo (24 Hrs)</option>
-              </select>
+                placeholder="Selecciona un plan"
+              />
             </div>
 
             <div className="space-y-2">

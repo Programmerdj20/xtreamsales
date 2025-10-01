@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { authService } from "./auth";
-import { calculatePlanEndDate, formatDateForInput } from "../lib/dateUtils";
+import { formatDateForInput, planToMonths } from "../lib/dateUtils";
+import { planService } from "./plans";
 
 // Tipos para la gestión de clientes
 export interface ClientData {
@@ -83,22 +84,41 @@ export const clientService = {
             // Obtener el usuario actual para determinar la propiedad
             const currentUser = await authService.getCurrentUser();
 
-            // Los días restantes y el status se calculan dinámicamente en el frontend
+            // Usar el plan proporcionado sin fallback hardcodeado
+            const plan = data.plan;
 
-            // Asegurarse de que el plan esté definido
-            const plan = data.plan || "1 Mes";
+            let fecha_fin = data.fecha_fin;
+
+            // SIEMPRE RECALCULAR LA FECHA BASADA EN EL PLAN
+            if (plan) {
+                const months = planToMonths(plan); // Usar función síncrona
+                const startDate = data.fecha_inicio ? new Date(data.fecha_inicio) : new Date();
+                const endDate = new Date(startDate);
+
+                if (months === 0) {
+                    endDate.setDate(endDate.getDate() + 1);
+                } else {
+                    endDate.setMonth(endDate.getMonth() + months);
+                }
+
+                fecha_fin = formatDateForInput(endDate);
+            } else if (!fecha_fin) {
+                // Solo usar fecha proporcionada si no hay plan
+                const startDate = data.fecha_inicio ? new Date(data.fecha_inicio) : new Date();
+                const endDate = new Date(startDate);
+                endDate.setMonth(endDate.getMonth() + 1);
+                fecha_fin = formatDateForInput(endDate);
+            }
 
             // Solo asignar owner_id si el usuario es un revendedor
-            // Los clientes del admin mantienen owner_id como NULL
-            const owner_id =
-                currentUser?.role === "reseller" ? currentUser.id : null;
+            const owner_id = currentUser?.role === "reseller" ? currentUser.id : null;
 
             const { error } = await supabase.from("clients").insert([
                 {
                     ...data,
                     plan,
-                    // No almacenamos dias_restantes ni status - se calculan dinámicamente
-                    owner_id, // NULL para admin, ID del usuario para revendedores
+                    fecha_fin,
+                    owner_id,
                     created_at: new Date().toISOString(),
                 },
             ]);
@@ -112,23 +132,24 @@ export const clientService = {
 
     async update(id: string, data: Partial<ClientFormData>): Promise<void> {
         try {
-            // Si se actualiza la fecha de fin, no necesitamos recalcular aquí
-            // porque dias_restantes y status se calculan dinámicamente
-            const updateData: Partial<ClientFormData> = { ...data };
-
-            // Si se actualiza el plan pero no la fecha fin, actualizar la fecha fin
-            if (data.plan && !data.fecha_fin) {
-                const endDate = calculatePlanEndDate(data.plan);
-                updateData.fecha_fin = formatDateForInput(endDate);
-                // No almacenamos dias_restantes ni status - se calculan dinámicamente
-            }
-
-            const { error } = await supabase
-                .from("clients")
-                .update(updateData)
-                .eq("id", id);
-
-            if (error) throw error;
+            // Usar RPC como resellers para evitar problemas de trigger timing
+            const { error: rpcError } = await supabase.rpc('update_client_info', {
+                client_id: id,
+                client_cliente: data.cliente || null,
+                client_whatsapp: data.whatsapp || null,
+                client_plataforma: data.plataforma || null,
+                client_dispositivos: data.dispositivos || null,
+                client_precio: data.precio || null,
+                client_usuario: data.usuario || null,
+                client_contraseña: data.contraseña || null,
+                client_fecha_inicio: data.fecha_inicio ? new Date(data.fecha_inicio) : null,
+                client_fecha_fin: data.fecha_fin ? new Date(data.fecha_fin) : null,
+                client_status: data.status || null,
+                client_plan: data.plan || null,
+                client_observacion: data.observacion || null
+            });
+            
+            if (rpcError) throw rpcError;
         } catch (error) {
             console.error("Error al actualizar cliente:", error);
             throw error;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Calendar } from 'lucide-react';
-import { calculatePlanEndDate, formatDateForInput } from '../../lib/dateUtils';
+import { calculatePlanEndDate, calculatePlanEndDateAsync, formatDateForInput } from '../../lib/dateUtils';
+import { PlanSelector } from '../ui/PlanSelector';
 
 interface AddResellerModalProps {
   isOpen: boolean;
@@ -121,26 +122,18 @@ export function AddResellerModal({ isOpen, onClose, onSubmit }: AddResellerModal
               <label className="text-sm font-medium">
                 Plan de Suscripción
               </label>
-              <select
+              <PlanSelector
                 value={formData.plan}
-                onChange={(e) => {
-                  const newPlan = e.target.value;
-                  const newEndDate = formatDateForInput(calculatePlanEndDate(newPlan));
+                onChange={async (newPlan) => {
+                  const newEndDate = formatDateForInput(await calculatePlanEndDateAsync(newPlan));
                   setFormData(prev => ({ 
                     ...prev, 
                     plan: newPlan,
                     endDate: newEndDate
                   }));
                 }}
-                className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm [&>option]:bg-[#0e121d]"
-                required
-              >
-                <option>1 Mes</option>
-                <option>3 Meses</option>
-                <option>6 Meses</option>
-                <option>12 Meses</option>
-                <option>Demo (24 Hrs)</option>
-              </select>
+                placeholder="Selecciona un plan"
+              />
             </div>
 
             <div className="space-y-2">

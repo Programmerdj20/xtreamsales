@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { PlanSelector } from '../ui/PlanSelector';
 
 interface RenewPlanModalProps {
   isOpen: boolean;
@@ -7,10 +8,8 @@ interface RenewPlanModalProps {
   onSubmit: (plan: string) => void;
 }
 
-const PLANS = ['1 Mes', '3 Meses', '6 Meses', '12 Meses'];
-
 export function RenewPlanModal({ isOpen, onClose, onSubmit }: RenewPlanModalProps) {
-  const [selectedPlan, setSelectedPlan] = React.useState(PLANS[0]);
+  const [selectedPlan, setSelectedPlan] = React.useState('');
 
   if (!isOpen) return null;
 
@@ -45,18 +44,11 @@ export function RenewPlanModal({ isOpen, onClose, onSubmit }: RenewPlanModalProp
               <label className="text-sm font-medium">
                 Plan de Suscripción
               </label>
-              <select
+              <PlanSelector
                 value={selectedPlan}
-                onChange={(e) => setSelectedPlan(e.target.value)}
-                className="w-full bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm [&>option]:bg-[#0e121d]"
-                required
-              >
-                {PLANS.map(plan => (
-                  <option key={plan} value={plan}>
-                    {plan}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedPlan}
+                placeholder="Selecciona un plan"
+              />
             </div>
 
             {/* Actions */}

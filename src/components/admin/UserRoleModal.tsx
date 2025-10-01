@@ -28,6 +28,8 @@ import {
     Mail,
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { PlanSelector } from "../ui/PlanSelector";
+import { calculatePlanEndDateAsync } from "../../lib/dateUtils";
 
 interface UserRoleModalProps {
     isOpen: boolean;
@@ -59,23 +61,9 @@ export function UserRoleModal({
     const [selectedPlan, setSelectedPlan] = useState("1 Mes");
     const [planEndDate, setPlanEndDate] = useState("");
 
-    // Función para calcular la fecha fin según el plan
-    const calculateEndDate = (plan: string) => {
-        const today = new Date();
-        switch (plan) {
-            case "Demo (24 Hrs)":
-                return new Date(today.setDate(today.getDate() + 1));
-            case "1 Mes":
-                return new Date(today.setMonth(today.getMonth() + 1));
-            case "3 Meses":
-                return new Date(today.setMonth(today.getMonth() + 3));
-            case "6 Meses":
-                return new Date(today.setMonth(today.getMonth() + 6));
-            case "12 Meses":
-                return new Date(today.setMonth(today.getMonth() + 12));
-            default:
-                return today;
-        }
+    // Función asíncrona para calcular la fecha fin según el plan usando dateUtils
+    const calculateEndDate = async (plan: string): Promise<Date> => {
+        return await calculatePlanEndDateAsync(plan);
     };
 
     const formatDate = (date: Date) => {
@@ -84,7 +72,11 @@ export function UserRoleModal({
 
     // Inicializar fecha de plan cuando se monta el componente
     React.useEffect(() => {
-        setPlanEndDate(formatDate(calculateEndDate(selectedPlan)));
+        const initPlanEndDate = async () => {
+            const endDate = await calculateEndDate(selectedPlan);
+            setPlanEndDate(formatDate(endDate));
+        };
+        initPlanEndDate();
     }, [selectedPlan]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -480,40 +472,17 @@ export function UserRoleModal({
                                             >
                                                 Plan de Suscripción
                                             </Label>
-                                            <Select
-                                                value={selectedPlan}
-                                                onValueChange={(value) => {
-                                                    setSelectedPlan(value);
-                                                    setPlanEndDate(
-                                                        formatDate(
-                                                            calculateEndDate(
-                                                                value
-                                                            )
-                                                        )
-                                                    );
-                                                }}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Seleccionar plan" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Demo (24 Hrs)">
-                                                        Demo (24 Hrs)
-                                                    </SelectItem>
-                                                    <SelectItem value="1 Mes">
-                                                        1 Mes
-                                                    </SelectItem>
-                                                    <SelectItem value="3 Meses">
-                                                        3 Meses
-                                                    </SelectItem>
-                                                    <SelectItem value="6 Meses">
-                                                        6 Meses
-                                                    </SelectItem>
-                                                    <SelectItem value="12 Meses">
-                                                        12 Meses
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <div className="plan-selector-wrapper">
+                                                <PlanSelector
+                                                    value={selectedPlan}
+                                                    onChange={async (value) => {
+                                                        setSelectedPlan(value);
+                                                        const endDate = await calculateEndDate(value);
+                                                        setPlanEndDate(formatDate(endDate));
+                                                    }}
+                                                    placeholder="Seleccionar plan"
+                                                />
+                                            </div>
                                         </div>
 
                                         <div className="space-y-2">
