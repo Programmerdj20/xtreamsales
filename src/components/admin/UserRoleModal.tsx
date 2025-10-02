@@ -61,6 +61,15 @@ export function UserRoleModal({
     const [selectedPlan, setSelectedPlan] = useState("1 Mes");
     const [planEndDate, setPlanEndDate] = useState("");
 
+    // Sincronizar estado local cuando cambien las props
+    React.useEffect(() => {
+        setRole(currentRole);
+        setStatus(currentStatus);
+        setName(userName);
+        setIsEditing(false);
+        setDeleteConfirm(false);
+    }, [currentRole, currentStatus, userName, isOpen]);
+
     // Función asíncrona para calcular la fecha fin según el plan usando dateUtils
     const calculateEndDate = async (plan: string): Promise<Date> => {
         return await calculatePlanEndDateAsync(plan);
@@ -119,7 +128,7 @@ export function UserRoleModal({
                 const { data: rpcResult, error: rpcError } = await supabase.rpc(
                     "update_user_status",
                     {
-                        user_id: userId,
+                        input_user_id: userId,
                         new_status: status,
                     }
                 );
@@ -130,12 +139,23 @@ export function UserRoleModal({
                         rpcError
                     );
                     throw rpcError;
-                } else {
-                    console.log(
-                        "Estado actualizado correctamente con RPC:",
+                }
+
+                // Verificar que la función retornó TRUE (éxito)
+                if (rpcResult === false || rpcResult === null) {
+                    console.error(
+                        "La función RPC update_user_status retornó false/null:",
                         rpcResult
                     );
+                    throw new Error(
+                        "La actualización de estado falló en la base de datos. Verifica los logs de Supabase."
+                    );
                 }
+
+                console.log(
+                    "Estado actualizado correctamente con RPC:",
+                    rpcResult
+                );
 
                 // Si es un revendedor y se está activando, actualizar el plan
                 if (
@@ -477,8 +497,13 @@ export function UserRoleModal({
                                                     value={selectedPlan}
                                                     onChange={async (value) => {
                                                         setSelectedPlan(value);
-                                                        const endDate = await calculateEndDate(value);
-                                                        setPlanEndDate(formatDate(endDate));
+                                                        const endDate =
+                                                            await calculateEndDate(
+                                                                value
+                                                            );
+                                                        setPlanEndDate(
+                                                            formatDate(endDate)
+                                                        );
                                                     }}
                                                     placeholder="Seleccionar plan"
                                                 />

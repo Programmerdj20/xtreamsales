@@ -41,7 +41,7 @@ const getMenuItems = (role: string | undefined) => {
                 icon: UserPlus,
             },
             {
-                title: "Gestión de Usuarios",
+                title: "Activacion Revendedores",
                 path: "/admin/users",
                 icon: UserCog,
             },

@@ -34,127 +34,169 @@ export default function UsersPage() {
 
     const fetchUsers = async () => {
         try {
-            console.log('Obteniendo usuarios...');
+            console.log("Obteniendo usuarios...");
             setLoading(true);
-            
+
             // Obtener todos los usuarios directamente de la API de autenticación
-            console.log('Obteniendo usuarios de auth...');
+            console.log("Obteniendo usuarios de auth...");
             const { data: sessionData } = await supabase.auth.getSession();
-            
+
             if (!sessionData || !sessionData.session) {
-                console.error('No hay sesión activa');
+                console.error("No hay sesión activa");
                 toast.error("Debes iniciar sesión para ver los usuarios");
                 setUsers([]);
                 setPendingCount(0);
                 return;
             }
-            
+
             // Usar la función RPC que sabemos que funciona
-            console.log('Obteniendo usuarios con RPC...');
-            const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_profiles');
-            
+            console.log("Obteniendo usuarios con RPC...");
+            const { data: rpcData, error: rpcError } = await supabase.rpc(
+                "get_all_profiles"
+            );
+
             if (rpcError) {
-                console.error('Error con RPC:', rpcError);
-                
+                console.error("Error con RPC:", rpcError);
+
                 // Si falla, obtener usuarios de auth directamente
-                console.log('Fallback: obteniendo usuarios de auth directamente...');
-                const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-                
+                console.log(
+                    "Fallback: obteniendo usuarios de auth directamente..."
+                );
+                const { data: authData, error: authError } =
+                    await supabase.auth.admin.listUsers();
+
                 if (authError) {
-                    console.error('Error al obtener usuarios de auth:', authError);
+                    console.error(
+                        "Error al obtener usuarios de auth:",
+                        authError
+                    );
                     throw authError;
                 }
-                
+
                 if (authData && authData.users) {
-                    console.log('Usuarios obtenidos de auth:', authData.users.length);
-                    
+                    console.log(
+                        "Usuarios obtenidos de auth:",
+                        authData.users.length
+                    );
+
                     // Convertir usuarios de auth a formato de usuario y eliminar duplicados por ID
-                    const formattedUsers = authData.users.map(user => ({
+                    const formattedUsers = authData.users.map((user) => ({
                         id: user.id,
-                        email: user.email || '',
-                        full_name: user.user_metadata?.full_name || '',
-                        role: user.user_metadata?.role || 'reseller',
-                        status: user.user_metadata?.status || 'pending',
-                        created_at: user.created_at || new Date().toISOString()
+                        email: user.email || "",
+                        full_name: user.user_metadata?.full_name || "",
+                        role: user.user_metadata?.role || "reseller",
+                        status: user.user_metadata?.status || "pending",
+                        created_at: user.created_at || new Date().toISOString(),
                     }));
-                    
+
                     // Eliminar duplicados por ID
-                    const uniqueUsers = Array.from(new Map(formattedUsers.map(user => [user.id, user])).values()) as User[];
-                    
-                    console.log('Usuarios únicos formateados:', uniqueUsers.length);
+                    const uniqueUsers = Array.from(
+                        new Map(
+                            formattedUsers.map((user) => [user.id, user])
+                        ).values()
+                    ) as User[];
+
+                    console.log(
+                        "Usuarios únicos formateados:",
+                        uniqueUsers.length
+                    );
                     setUsers(uniqueUsers);
-                    
+
                     // Contar usuarios pendientes
-                    const pendingUsers = uniqueUsers.filter(user => user.status === 'pending') || [];
+                    const pendingUsers =
+                        uniqueUsers.filter(
+                            (user) => user.status === "pending"
+                        ) || [];
                     setPendingCount(pendingUsers.length);
                 } else {
-                    console.warn('No se encontraron usuarios en auth');
+                    console.warn("No se encontraron usuarios en auth");
                     setUsers([]);
                     setPendingCount(0);
                 }
             } else if (rpcData && rpcData.length > 0) {
-                console.log('Usuarios obtenidos de RPC:', rpcData.length);
-                
+                console.log("Usuarios obtenidos de RPC:", rpcData.length);
+
                 // Eliminar duplicados por ID
-                const uniqueUsers = Array.from(new Map(rpcData.map(user => [user.id, user])).values()) as User[];
-                console.log('Usuarios únicos de RPC:', uniqueUsers.length);
-                
+                const uniqueUsers = Array.from(
+                    new Map(rpcData.map((user) => [user.id, user])).values()
+                ) as User[];
+                console.log("Usuarios únicos de RPC:", uniqueUsers.length);
+
                 // Obtener fechas de vencimiento para resellers usando RPC
-                const resellerIds = uniqueUsers.filter(u => u.role === 'reseller').map(u => u.id);
+                const resellerIds = uniqueUsers
+                    .filter((u) => u.role === "reseller")
+                    .map((u) => u.id);
                 let resellerDates: { [key: string]: string } = {};
-                
+
                 if (resellerIds.length > 0) {
-                    const { data: resellersData, error: resellersError } = await supabase
-                        .rpc('get_all_resellers');
-                    
-                    console.log('Resellers data:', resellersData, 'Error:', resellersError);
-                    
+                    const { data: resellersData, error: resellersError } =
+                        await supabase.rpc("get_all_resellers");
+
+                    console.log(
+                        "Resellers data:",
+                        resellersData,
+                        "Error:",
+                        resellersError
+                    );
+
                     if (resellersData && Array.isArray(resellersData)) {
-                        resellersData.forEach(r => {
+                        resellersData.forEach((r) => {
                             if (r.plan_end_date && resellerIds.includes(r.id)) {
                                 resellerDates[r.id] = r.plan_end_date;
                             }
                         });
                     }
                 }
-                
+
                 // Para resellers, verificar si están vencidos y actualizar estado real
-                const usersWithCorrectStatus = await Promise.all(uniqueUsers.map(async user => {
-                    if (user.role === 'reseller' && resellerDates[user.id]) {
-                        const endDate = new Date(resellerDates[user.id]);
-                        const now = new Date();
-                        const isExpired = endDate < now;
-                        
-                        // Si está vencido pero su estado no es 'inactive', actualizarlo en BD
-                        if (isExpired && user.status !== 'inactive') {
-                            try {
-                                console.log(`Actualizando reseller vencido ${user.id} a inactive`);
-                                await supabase.rpc("update_user_status", {
-                                    input_user_id: user.id,
-                                    new_status: 'inactive'
-                                });
-                                return { ...user, status: 'inactive' };
-                            } catch (error) {
-                                console.error(`Error actualizando reseller ${user.id}:`, error);
-                                return { ...user, status: 'inactive' }; // Al menos mostrar como inactive
+                const usersWithCorrectStatus = await Promise.all(
+                    uniqueUsers.map(async (user) => {
+                        if (
+                            user.role === "reseller" &&
+                            resellerDates[user.id]
+                        ) {
+                            const endDate = new Date(resellerDates[user.id]);
+                            const now = new Date();
+                            const isExpired = endDate < now;
+
+                            // Si está vencido pero su estado no es 'inactive', actualizarlo en BD
+                            if (isExpired && user.status !== "inactive") {
+                                try {
+                                    console.log(
+                                        `Actualizando reseller vencido ${user.id} a inactive`
+                                    );
+                                    await supabase.rpc("update_user_status", {
+                                        input_user_id: user.id,
+                                        new_status: "inactive",
+                                    });
+                                    return { ...user, status: "inactive" };
+                                } catch (error) {
+                                    console.error(
+                                        `Error actualizando reseller ${user.id}:`,
+                                        error
+                                    );
+                                    return { ...user, status: "inactive" }; // Al menos mostrar como inactive
+                                }
                             }
+
+                            return {
+                                ...user,
+                                status: isExpired ? "inactive" : user.status,
+                            };
                         }
-                        
-                        return {
-                            ...user,
-                            status: isExpired ? 'inactive' : user.status
-                        };
-                    }
-                    return user;
-                }));
-                
+                        return user;
+                    })
+                );
+
                 setUsers(usersWithCorrectStatus);
-                
+
                 // Contar usuarios pendientes
-                const pendingUsers = uniqueUsers.filter(user => user.status === 'pending') || [];
+                const pendingUsers =
+                    uniqueUsers.filter((user) => user.status === "pending") ||
+                    [];
                 setPendingCount(pendingUsers.length);
             } else {
-                console.warn('No se encontraron usuarios con RPC');
+                console.warn("No se encontraron usuarios con RPC");
                 setUsers([]);
                 setPendingCount(0);
             }
@@ -208,7 +250,18 @@ export default function UsersPage() {
     };
 
     // Filtrar usuarios según el término de búsqueda
+    // Y mostrar SOLO usuarios PENDIENTES
     const filteredUsers = users.filter((user) => {
+        // Solo mostrar usuarios PENDIENTES
+        if (user.status !== "pending") {
+            return false;
+        }
+
+        // Luego filtrar por término de búsqueda si existe
+        if (!searchTerm) {
+            return true;
+        }
+
         const searchLower = searchTerm.toLowerCase();
         return (
             user.email.toLowerCase().includes(searchLower) ||
