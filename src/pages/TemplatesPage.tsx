@@ -230,20 +230,20 @@ export default function TemplatesPage() {
             <div className="space-y-4">
                 <h2 className="text-lg font-medium">Plantillas Existentes</h2>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {isLoading ? (
-                        <div className="col-span-2 text-center py-8 text-muted-foreground">
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
                             Cargando plantillas...
                         </div>
                     ) : templates.length === 0 ? (
-                        <div className="col-span-2 text-center py-8 text-muted-foreground">
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
                             No hay plantillas creadas.
                         </div>
                     ) : (
                         templates.map((template) => (
                             <div
                                 key={template.id}
-                                className="bg-[#1a1d24] rounded-xl border border-border/10 p-6 relative group"
+                                className="bg-[#1a1d24] rounded-xl border border-border/10 p-6 relative group min-h-[200px] overflow-hidden flex flex-col"
                             >
                                 <div className="flex justify-end gap-2 mb-4">
                                     <button
@@ -269,12 +269,12 @@ export default function TemplatesPage() {
                                     </button>
                                 </div>
 
-                                <div className="flex items-center gap-2 mb-3">
-                                    <h3 className="font-medium text-[#00A8FF]">
+                                <div className="flex flex-col gap-2 mb-3">
+                                    <h3 className="font-medium text-[#00A8FF] truncate" title={template.name}>
                                         {template.name}
                                     </h3>
                                     <span
-                                        className={`px-2 py-0.5 text-xs rounded-full ${
+                                        className={`inline-block self-start px-2 py-0.5 text-xs rounded-full ${
                                             template.category === "credenciales"
                                                 ? "bg-green-500/20 text-green-400"
                                                 : "bg-yellow-500/20 text-yellow-400"
@@ -285,9 +285,11 @@ export default function TemplatesPage() {
                                             : "Recordatorio"}
                                     </span>
                                 </div>
-                                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                                    {template.content}
-                                </p>
+                                <div className="flex-1 overflow-hidden">
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-border/20 scrollbar-track-transparent">
+                                        {template.content}
+                                    </p>
+                                </div>
                             </div>
                         ))
                     )}

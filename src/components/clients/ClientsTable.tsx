@@ -85,59 +85,59 @@ export const ClientsTable: React.FC<ClientsTableProps> = ({ clients, isLoading, 
       <table className="min-w-full text-sm">
         <thead className="bg-muted/50 border-b border-border/10">
           <tr>
-            <th className="p-3 text-left font-medium">Cliente</th>
-            <th className="p-3 text-left font-medium hidden">Whatsapp</th>
-            <th className="p-3 text-left font-medium">Plataforma</th>
-            <th className="p-3 text-center font-medium">Plan</th>
-            <th className="p-3 text-left font-medium hidden">Disp.</th>
-            <th className="p-3 text-center font-medium">Usuario</th>
-            <th className="p-3 text-left font-medium hidden">Contraseña</th>
-            <th className="p-3 text-center font-medium">Fecha Fin</th>
-            <th className="p-3 text-center font-medium">Días</th>
-            <th className="p-3 text-center font-medium">Estado</th>
-            <th className="p-3 text-left font-medium hidden">Precio</th>
-            <th className="p-3 text-center font-medium">Acciones</th>
+            <th className="p-2 sm:p-3 text-left font-medium">Cliente</th>
+            <th className="p-2 sm:p-3 text-left font-medium hidden">Whatsapp</th>
+            <th className="p-2 sm:p-3 text-left font-medium hidden md:table-cell">Plataforma</th>
+            <th className="p-2 sm:p-3 text-center font-medium hidden lg:table-cell">Plan</th>
+            <th className="p-2 sm:p-3 text-left font-medium hidden">Disp.</th>
+            <th className="p-2 sm:p-3 text-center font-medium hidden lg:table-cell">Usuario</th>
+            <th className="p-2 sm:p-3 text-left font-medium hidden">Contraseña</th>
+            <th className="p-2 sm:p-3 text-center font-medium hidden md:table-cell">Fecha Fin</th>
+            <th className="p-2 sm:p-3 text-center font-medium hidden sm:table-cell">Días</th>
+            <th className="p-2 sm:p-3 text-center font-medium">Estado</th>
+            <th className="p-2 sm:p-3 text-left font-medium hidden">Precio</th>
+            <th className="p-2 sm:p-3 text-center font-medium">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {clients.map((client, index) => (
-            <tr 
-              key={client.id} 
+            <tr
+              key={client.id}
               className={`border-b border-border/10 hover:bg-muted/10 transition-colors ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/5'}`}
             >
-              <td className="p-3 font-medium">{client.cliente}</td>
-              <td className="p-3 hidden">{client.whatsapp}</td>
-              <td className="p-3">{client.plataforma}</td>
-              <td className="p-3 text-center">
+              <td className="p-2 sm:p-3 font-medium text-xs sm:text-sm">{client.cliente}</td>
+              <td className="p-2 sm:p-3 hidden">{client.whatsapp}</td>
+              <td className="p-2 sm:p-3 hidden md:table-cell text-xs sm:text-sm">{client.plataforma}</td>
+              <td className="p-2 sm:p-3 text-center hidden lg:table-cell">
                 <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-medium">
                   {client.plan}
                 </span>
               </td>
-              <td className="p-3 text-center hidden">{client.dispositivos}</td>
-              <td className="p-3 text-center">{client.usuario}</td>
-              <td className="p-3 hidden">{client.contraseña}</td>
-              <td className="p-3 text-center">{formatDate(client.fecha_fin)}</td>
-              <td className="p-3 text-center">
+              <td className="p-2 sm:p-3 text-center hidden">{client.dispositivos}</td>
+              <td className="p-2 sm:p-3 text-center hidden lg:table-cell text-xs sm:text-sm">{client.usuario}</td>
+              <td className="p-2 sm:p-3 hidden">{client.contraseña}</td>
+              <td className="p-2 sm:p-3 text-center hidden md:table-cell text-xs sm:text-sm">{formatDate(client.fecha_fin)}</td>
+              <td className="p-2 sm:p-3 text-center hidden sm:table-cell">
                 <span className={
                   client.dias_restantes > 10
-                    ? "text-green-500 font-medium"
+                    ? "text-green-500 font-medium text-xs sm:text-sm"
                     : client.dias_restantes > 0
-                    ? "text-yellow-500 font-medium"
-                    : "text-red-500 font-medium"
+                    ? "text-yellow-500 font-medium text-xs sm:text-sm"
+                    : "text-red-500 font-medium text-xs sm:text-sm"
                 }>
                   {client.dias_restantes}
                 </span>
               </td>
-              <td className="p-3 text-center">
-                <span className={`${getStatusBadgeClass(client.status)} px-2 py-1 rounded text-xs font-medium`}>
+              <td className="p-2 sm:p-3 text-center">
+                <span className={`${getStatusBadgeClass(client.status)} px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs font-medium whitespace-nowrap`}>
                   {getStatusLabel(client.status)}
                 </span>
               </td>
-              <td className="p-3 text-right hidden">
+              <td className="p-2 sm:p-3 text-right hidden">
                 ${formatPrice(client.precio)}
               </td>
-              <td className="p-2 text-center">
-                <ClientActions 
+              <td className="p-1 sm:p-2 text-center">
+                <ClientActions
                   onEdit={() => onEdit && onEdit(client)}
                   onRenew={() => onRenew && onRenew(client)}
                   onSendCredentials={() => onSendCredentials && onSendCredentials(client)}

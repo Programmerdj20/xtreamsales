@@ -101,9 +101,9 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
   const isEditing = !!reseller;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50">
-      <div className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
-        <div className="bg-[#1a1d24] rounded-xl border border-border/10 w-[400px] shadow-xl">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="w-full max-w-[400px] max-h-[95vh] overflow-y-auto">
+        <div className="bg-[#1a1d24] rounded-xl border border-border/10 shadow-xl relative">
           <button 
             onClick={onClose}
             className="absolute right-4 top-4 text-muted-foreground hover:text-foreground"
@@ -118,19 +118,19 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
             }
           `}</style>
 
-          <div className="p-4 border-b border-border/10">
-            <h2 className="text-lg font-medium">
+          <div className="p-3 sm:p-4 border-b border-border/10">
+            <h2 className="text-base sm:text-lg font-medium">
               {isEditing ? 'Editar Revendedor' : 'Agregar Nuevo Revendedor'}
             </h2>
-            <p className="text-sm text-muted-foreground">
-              {isEditing 
-                ? 'Modifica la información del revendedor.' 
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {isEditing
+                ? 'Modifica la información del revendedor.'
                 : 'Completa la información del nuevo revendedor. Se creará un usuario y un perfil de revendedor.'}
             </p>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <form onSubmit={handleSubmit} className="p-3 sm:p-4 space-y-3 sm:space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">
                 Nombre Completo / Empresa
@@ -252,17 +252,17 @@ export function ResellerModal({ isOpen, onClose, onSubmit, reseller }: ResellerM
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-border/10">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-border/10">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium border border-border/10 hover:bg-[#a855f7]/20 transition-colors"
+                className="px-4 py-2 sm:px-3 sm:py-1.5 rounded-lg text-sm font-medium border border-border/10 hover:bg-[#a855f7]/20 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white"
+                className="px-4 py-2 sm:px-3 sm:py-1.5 rounded-lg text-sm font-medium bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white"
               >
                 {isEditing ? 'Guardar Cambios' : 'Agregar Revendedor'}
               </button>

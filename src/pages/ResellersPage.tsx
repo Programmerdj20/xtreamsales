@@ -277,27 +277,27 @@ const ResellersPage = () => {
 
     return (
         <div>
-            <h1 className="text-2xl font-semibold mb-6">
+            <h1 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
                 Gestión de Revendedores
             </h1>
             {/* Tarjetas de resumen */}
-            <div className="grid grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
                 {summaryData.map((item, index) => (
                     <div
                         key={index}
-                        className="bg-[#1a1d24] p-4 rounded-xl border border-border/10 flex items-center justify-between"
+                        className="bg-[#1a1d24] p-3 sm:p-4 rounded-xl border border-border/10 flex items-center justify-between"
                     >
                         <div>
-                            <h3 className="text-sm text-muted-foreground">{item.title}</h3>
-                            <p className={`text-2xl font-semibold mt-1 ${item.color}`}>{item.value}</p>
+                            <h3 className="text-xs sm:text-sm text-muted-foreground">{item.title}</h3>
+                            <p className={`text-xl sm:text-2xl font-semibold mt-1 ${item.color}`}>{item.value}</p>
                         </div>
-                        <item.Icon className={`w-5 h-5 ${item.color}`} />
+                        <item.Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${item.color}`} />
                     </div>
                 ))}
             </div>
             {/* Filtros y acciones */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0 mb-4">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                     <select
                         value={statusFilter}
                         onChange={e => setStatusFilter(e.target.value)}
@@ -314,15 +314,16 @@ const ResellersPage = () => {
                         placeholder="Buscar revendedor..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm w-[250px]"
+                        className="bg-background/50 border border-border/10 rounded-lg px-3 py-1.5 text-sm w-full sm:w-[250px]"
                     />
                 </div>
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"
+                    className="bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 justify-center"
                 >
                     <PlusCircle className="w-4 h-4" />
-                    <span>Nuevo Revendedor</span>
+                    <span className="hidden sm:inline">Nuevo Revendedor</span>
+                    <span className="sm:hidden">Nuevo</span>
                 </button>
             </div>
             {/* Tabla de Revendedores */}
@@ -330,14 +331,14 @@ const ResellersPage = () => {
                 <table className="w-full text-sm">
                     <thead className="bg-muted/50 border-b border-border/10 text-left">
                         <tr>
-                            <th className="p-4 font-medium">Nombre</th>
-                            <th className="p-4 font-medium">Email</th>
-                            <th className="p-4 font-medium">Teléfono</th>
-                            <th className="p-4 font-medium">Plan</th>
-                            <th className="p-4 font-medium">Fin Suscripción</th>
-                            <th className="text-left p-4 text-muted-foreground font-medium">Clientes</th>
-                            <th className="text-left p-4 text-muted-foreground font-medium">Estado</th>
-                            <th className="text-right p-4 text-muted-foreground font-medium">Acciones</th>
+                            <th className="p-2 sm:p-4 font-medium">Nombre</th>
+                            <th className="p-2 sm:p-4 font-medium hidden md:table-cell">Email</th>
+                            <th className="p-2 sm:p-4 font-medium hidden lg:table-cell">Teléfono</th>
+                            <th className="p-2 sm:p-4 font-medium hidden lg:table-cell">Plan</th>
+                            <th className="p-2 sm:p-4 font-medium hidden md:table-cell">Fin Suscripción</th>
+                            <th className="text-left p-2 sm:p-4 text-muted-foreground font-medium hidden sm:table-cell">Clientes</th>
+                            <th className="text-left p-2 sm:p-4 text-muted-foreground font-medium">Estado</th>
+                            <th className="text-right p-2 sm:p-4 text-muted-foreground font-medium">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className="text-muted-foreground">
@@ -359,22 +360,22 @@ const ResellersPage = () => {
                         ) : (
                             filteredResellers.map((reseller: Reseller, index) => {
                                 return (
-                                    <tr 
-                                      key={reseller.id} 
+                                    <tr
+                                      key={reseller.id}
                                       className={`border-b border-border/10 hover:bg-muted/10 transition-colors ${index % 2 === 0 ? 'bg-transparent' : 'bg-muted/5'}`}
                                     >
-                                        <td className="p-4">{reseller.full_name}</td>
-                                        <td className="p-4">{reseller.email}</td>
-                                        <td className="p-4">{reseller.phone}</td>
-                                        <td className="p-4">{reseller.plan_type}</td>
-                                        <td className="p-4">{reseller.plan_end_date ? new Date(reseller.plan_end_date).toLocaleDateString() : ''}</td>
-                                        <td className="p-4">{reseller.clients_count ?? 0}</td>
-                                        <td className="p-4">
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(reseller.status)}`}>
+                                        <td className="p-2 sm:p-4 text-xs sm:text-sm">{reseller.full_name}</td>
+                                        <td className="p-2 sm:p-4 text-xs sm:text-sm hidden md:table-cell">{reseller.email}</td>
+                                        <td className="p-2 sm:p-4 text-xs sm:text-sm hidden lg:table-cell">{reseller.phone}</td>
+                                        <td className="p-2 sm:p-4 text-xs sm:text-sm hidden lg:table-cell">{reseller.plan_type}</td>
+                                        <td className="p-2 sm:p-4 text-xs sm:text-sm hidden md:table-cell">{reseller.plan_end_date ? new Date(reseller.plan_end_date).toLocaleDateString() : ''}</td>
+                                        <td className="p-2 sm:p-4 text-xs sm:text-sm hidden sm:table-cell">{reseller.clients_count ?? 0}</td>
+                                        <td className="p-2 sm:p-4">
+                                            <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold rounded-full whitespace-nowrap ${getStatusBadgeClass(reseller.status)}`}>
                                                 {getStatusLabel(reseller.status)}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-right">
+                                        <td className="p-1 sm:p-4 text-right">
                                             <ResellerActions
                                                 onEdit={() => handleEditReseller(reseller)}
                                                 onRenew={() => handleRenewReseller(reseller)}

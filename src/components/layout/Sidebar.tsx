@@ -70,14 +70,23 @@ const getMenuItems = (role: string | undefined) => {
 
 interface SidebarProps {
     isCollapsed: boolean;
+    toggleSidebar: () => void;
 }
 
-export default function Sidebar({ isCollapsed }: SidebarProps) {
+export default function Sidebar({ isCollapsed, toggleSidebar }: SidebarProps) {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const location = useLocation();
 
     const menuItems = getMenuItems(user?.role); // Pasar directamente user?.role
+
+    // Handler para cerrar el sidebar al hacer clic en un item del menú (solo en móvil)
+    const handleMenuItemClick = () => {
+        // Cerrar sidebar solo en dispositivos móviles/tablets (< 1024px)
+        if (window.innerWidth < 1024 && !isCollapsed) {
+            toggleSidebar();
+        }
+    };
 
     const handleLogout = async () => {
         try {
@@ -104,26 +113,50 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
         menuItems.find((item) => item.path === location.pathname)?.title || "";
 
     return (
-        <aside
-            className={`h-screen bg-secondary text-foreground flex flex-col transition-all duration-300 ease-in-out ${
-                isCollapsed ? "w-16 sm:w-20" : "w-64"
-            }`}
-        >
-            <div className="p-2 sm:p-4 border-b border-border flex items-center justify-center">
+        <>
+            {/* Overlay oscuro para móvil cuando el sidebar está abierto */}
+            {!isCollapsed && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                    onClick={toggleSidebar}
+                />
+            )}
+
+            {/* Sidebar */}
+            <aside
+                className={`h-screen bg-secondary text-foreground flex flex-col transition-all duration-300 ease-in-out z-50
+                    ${isCollapsed
+                        ? "-translate-x-full lg:translate-x-0 lg:w-20"
+                        : "translate-x-0 w-64"
+                    }
+                    fixed lg:relative
+                `}
+            >
+            <div className="p-3 lg:p-4 border-b border-border flex items-center justify-between lg:justify-center">
                 <img
                     src={isCollapsed ? logoCollapsedUrl : logoExpandedUrl}
                     alt="XtreamSales Logo"
                     className={`transition-all duration-300 ease-in-out ${
-                        isCollapsed ? "h-6 sm:h-8" : "h-10 sm:h-12"
+                        isCollapsed ? "h-8 lg:h-8" : "h-10 sm:h-12"
                     } w-auto`}
                 />
+                {/* Botón de cerrar solo visible en móvil */}
+                {!isCollapsed && (
+                    <button
+                        onClick={toggleSidebar}
+                        className="lg:hidden p-2 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                        <ChevronsLeft className="w-5 h-5" />
+                    </button>
+                )}
             </div>
 
-            <nav className="flex-grow p-2 sm:p-4 space-y-2">
+            <nav className="flex-grow p-3 lg:p-4 space-y-2">
                 {menuItems.map((item) => (
                     <Link
                         key={item.title}
                         to={item.path}
+                        onClick={handleMenuItemClick}
                         className={`flex items-center space-x-3 p-2 rounded-xl transition-colors
               ${
                   item.title === activeItem
@@ -134,7 +167,7 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
             `}
                         title={isCollapsed ? item.title : undefined}
                     >
-                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <item.icon className="h-5 w-5" />
                         {!isCollapsed && (
                             <span className="text-sm font-medium">
                                 {item.title}
@@ -145,7 +178,7 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
             </nav>
 
             <div
-                className={`p-2 sm:p-4 border-t border-border ${
+                className={`p-3 lg:p-4 border-t border-border ${
                     isCollapsed ? "flex justify-center" : ""
                 }`}
             >
@@ -153,29 +186,23 @@ export default function Sidebar({ isCollapsed }: SidebarProps) {
                 <div className="mt-auto">
                     <button
                         onClick={handleLogout}
-                        className={`w-full flex items-center px-2 sm:px-3 py-1 sm:py-2 text-muted-foreground hover:bg-accent hover:text-white transition-colors ${
+                        className={`w-full flex items-center px-3 py-2 text-muted-foreground hover:bg-accent hover:text-white transition-colors rounded-lg ${
                             isCollapsed ? "justify-center" : ""
                         }`}
                     >
                         {isCollapsed ? (
-                            <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <LogOut className="w-5 h-5" />
                         ) : (
                             <>
-                                <LogOut className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                                Cerrar Sesión
+                                <LogOut className="w-5 h-5 mr-2" />
+                                <span className="text-sm font-medium">Cerrar Sesión</span>
                             </>
                         )}
                     </button>
                 </div>
             </div>
 
-            {/* Botón para colapsar/expandir - Temporalmente aquí, luego lo moveremos al Header o MainLayout */}
-            {/* <button 
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="p-2 text-muted-foreground hover:text-foreground absolute bottom-16 right-0 transform translate-x-1/2 bg-secondary rounded-full border border-border shadow-lg" // Oculto en md y mayores, ya que el control estará en el header
-      >
-        {isCollapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
-      </button> */}
         </aside>
+        </>
     );
 }

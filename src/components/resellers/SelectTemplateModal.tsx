@@ -42,22 +42,22 @@ export function SelectTemplateModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div className="bg-[#1a1d24] rounded-xl border border-border/10 shadow-xl p-6 w-full max-w-md">
-                <h2 className="text-lg font-semibold mb-4 text-foreground">
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-[#1a1d24] rounded-xl border border-border/10 shadow-xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-foreground">
                     Selecciona plantilla de{" "}
                     {type === "credenciales" ? "credenciales" : "recordatorio"}
                 </h2>
                 {loading ? (
-                    <div className="text-center py-8 text-muted-foreground">
+                    <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
                         Cargando plantillas...
                     </div>
                 ) : templates.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
+                    <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
                         No hay plantillas disponibles.
                     </div>
                 ) : (
-                    <ul className="space-y-2 mb-4 max-h-96 overflow-y-auto">
+                    <ul className="space-y-2 mb-3 sm:mb-4 max-h-[60vh] overflow-y-auto">
                         {templates.map((template) => (
                             <TemplateItem
                                 key={template.id}
@@ -69,7 +69,7 @@ export function SelectTemplateModal({
                     </ul>
                 )}
                 <div className="flex justify-end">
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
                         Cancelar
                     </Button>
                 </div>

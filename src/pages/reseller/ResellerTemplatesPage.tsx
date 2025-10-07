@@ -232,56 +232,76 @@ const ResellerTemplatesPage: React.FC = () => {
 
             <div className="space-y-4">
                 <h2 className="text-lg font-medium">Plantillas Existentes</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {isLoading ? (
-                        <p>Cargando...</p>
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
+                            Cargando plantillas...
+                        </div>
+                    ) : templates.length === 0 ? (
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
+                            No hay plantillas creadas.
+                        </div>
                     ) : (
                         templates.map((template) => (
                             <div
                                 key={template.id}
-                                className="bg-[#1a1d24] rounded-xl border border-border/10 p-6"
+                                className="bg-[#1a1d24] rounded-xl border border-border/10 p-6 min-h-[200px] overflow-hidden flex flex-col"
                             >
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h3 className="font-medium text-[#00A8FF]">
-                                            {template.name}
-                                        </h3>
+                                <div className="flex justify-end gap-2 mb-4">
+                                    <button
+                                        onClick={() =>
+                                            setEditingTemplate(template)
+                                        }
+                                        className="p-1.5 rounded-md hover:bg-[#00A8FF]/20 text-[#00A8FF] transition-colors"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                    {!isSystemTemplate(template) && (
+                                        <button
+                                            onClick={() =>
+                                                handleDelete(template.id)
+                                            }
+                                            className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-col gap-2 mb-3">
+                                    <h3 className="font-medium text-[#00A8FF] truncate" title={template.name}>
+                                        {template.name}
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2 items-center">
                                         <span
-                                            className={`text-xs ${
+                                            className={`inline-block px-2 py-0.5 text-xs rounded-full ${
+                                                template.category === "credenciales"
+                                                    ? "bg-green-500/20 text-green-400"
+                                                    : "bg-yellow-500/20 text-yellow-400"
+                                            }`}
+                                        >
+                                            {template.category === "credenciales"
+                                                ? "Credenciales"
+                                                : "Recordatorio"}
+                                        </span>
+                                        <span
+                                            className={`inline-block px-2 py-0.5 text-xs rounded-full ${
                                                 isSystemTemplate(template)
-                                                    ? "text-blue-400"
-                                                    : "text-gray-400"
+                                                    ? "bg-blue-500/20 text-blue-400"
+                                                    : "bg-gray-500/20 text-gray-400"
                                             }`}
                                         >
                                             {isSystemTemplate(template)
-                                                ? "Plantilla del Sistema"
-                                                : "Mi Plantilla"}
+                                                ? "Sistema"
+                                                : "Personal"}
                                         </span>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() =>
-                                                setEditingTemplate(template)
-                                            }
-                                            className="p-1.5 rounded-md hover:bg-[#00A8FF]/20 text-[#00A8FF] transition-colors"
-                                        >
-                                            <Pencil className="w-4 h-4" />
-                                        </button>
-                                        {!isSystemTemplate(template) && (
-                                            <button
-                                                onClick={() =>
-                                                    handleDelete(template.id)
-                                                }
-                                                className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
                                 </div>
-                                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed mt-4">
-                                    {template.content}
-                                </p>
+                                <div className="flex-1 overflow-hidden">
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-border/20 scrollbar-track-transparent">
+                                        {template.content}
+                                    </p>
+                                </div>
                             </div>
                         ))
                     )}

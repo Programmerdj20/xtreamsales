@@ -53,60 +53,60 @@ function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-8">
       <div>
-        <h2 className="text-3xl font-bold mb-6">Dashboard</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Dashboard</h2>
 
         {/* Tarjetas de estadísticas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {/* SECCIÓN DE CLIENTES */}
-          <div className="bg-[#1a1d24] p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium">Clientes Activos</h3>
-              <Users className="w-5 h-5 text-green-400" />
+          <div className="bg-[#1a1d24] p-3 sm:p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
+            <div className="flex justify-between items-center mb-2 sm:mb-3">
+              <h3 className="text-xs sm:text-sm font-medium">Clientes Activos</h3>
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
             </div>
-            <p className="text-3xl font-semibold text-green-400">{stats?.clients.active || 0}</p>
+            <p className="text-2xl sm:text-3xl font-semibold text-green-400">{stats?.clients.active || 0}</p>
           </div>
 
-          <div className="bg-[#1a1d24] p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium">Clientes por Vencer (5 días)</h3>
-              <Clock className="w-5 h-5 text-yellow-400" />
+          <div className="bg-[#1a1d24] p-3 sm:p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
+            <div className="flex justify-between items-center mb-2 sm:mb-3">
+              <h3 className="text-xs sm:text-sm font-medium">Clientes por Vencer (5 días)</h3>
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
             </div>
-            <p className="text-3xl font-semibold text-yellow-400">{stats?.clients.expiringSoon || 0}</p>
+            <p className="text-2xl sm:text-3xl font-semibold text-yellow-400">{stats?.clients.expiringSoon || 0}</p>
           </div>
 
-          <div className="bg-[#1a1d24] p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium">Clientes Vencidos</h3>
-              <Users className="w-5 h-5 text-red-400" />
+          <div className="bg-[#1a1d24] p-3 sm:p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
+            <div className="flex justify-between items-center mb-2 sm:mb-3">
+              <h3 className="text-xs sm:text-sm font-medium">Clientes Vencidos</h3>
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
             </div>
-            <p className="text-3xl font-semibold text-red-400">{stats?.clients.expired || 0}</p>
+            <p className="text-2xl sm:text-3xl font-semibold text-red-400">{stats?.clients.expired || 0}</p>
           </div>
 
           {/* SECCIÓN DE REVENDEDORES */}
-          <div className="bg-[#1a1d24] p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium">Revendedores Activos</h3>
-              <UserCheck className="w-5 h-5 text-green-400" />
+          <div className="bg-[#1a1d24] p-3 sm:p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
+            <div className="flex justify-between items-center mb-2 sm:mb-3">
+              <h3 className="text-xs sm:text-sm font-medium">Revendedores Activos</h3>
+              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
             </div>
-            <p className="text-3xl font-semibold text-green-400">{stats?.resellers.active || 0}</p>
+            <p className="text-2xl sm:text-3xl font-semibold text-green-400">{stats?.resellers.active || 0}</p>
           </div>
 
-          <div className="bg-[#1a1d24] p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium">Revendedores por Vencer (5 días)</h3>
-              <Clock className="w-5 h-5 text-yellow-400" />
+          <div className="bg-[#1a1d24] p-3 sm:p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
+            <div className="flex justify-between items-center mb-2 sm:mb-3">
+              <h3 className="text-xs sm:text-sm font-medium">Revendedores por Vencer (5 días)</h3>
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
             </div>
-            <p className="text-3xl font-semibold text-yellow-400">{stats?.resellers.expiringSoon || 0}</p>
+            <p className="text-2xl sm:text-3xl font-semibold text-yellow-400">{stats?.resellers.expiringSoon || 0}</p>
           </div>
 
-          <div className="bg-[#1a1d24] p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium">Revendedores Vencidos</h3>
-              <Users className="w-5 h-5 text-red-400" />
+          <div className="bg-[#1a1d24] p-3 sm:p-4 rounded-xl border border-border/10 hover:border-border/20 transition-colors">
+            <div className="flex justify-between items-center mb-2 sm:mb-3">
+              <h3 className="text-xs sm:text-sm font-medium">Revendedores Vencidos</h3>
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
             </div>
-            <p className="text-3xl font-semibold text-red-400">{stats?.resellers.expired || 0}</p>
+            <p className="text-2xl sm:text-3xl font-semibold text-red-400">{stats?.resellers.expired || 0}</p>
           </div>
         </div>
 
@@ -116,29 +116,29 @@ function DashboardPage() {
         </div>
 
         {/* Últimos registros */}
-        <div className="mt-6">
-          <h3 className="text-xl font-semibold mb-4">Últimos Registros</h3>
-          <div className="bg-card rounded-xl border border-border/10 shadow-sm overflow-hidden">
+        <div className="mt-4 sm:mt-6">
+          <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Últimos Registros</h3>
+          <div className="bg-card rounded-xl border border-border/10 shadow-sm overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/10 bg-muted/50">
-                  <th className="text-left p-4 text-muted-foreground font-medium">Nombre</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Estado</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Fecha</th>
+                  <th className="text-left p-2 sm:p-4 text-muted-foreground font-medium text-xs sm:text-sm">Nombre</th>
+                  <th className="text-left p-2 sm:p-4 text-muted-foreground font-medium text-xs sm:text-sm">Estado</th>
+                  <th className="text-left p-2 sm:p-4 text-muted-foreground font-medium text-xs sm:text-sm hidden sm:table-cell">Fecha</th>
                 </tr>
               </thead>
               <tbody>
                 {stats?.resellers.recentRegistrations.map((reseller) => (
                   <tr key={reseller.id} className="border-b border-border/10 last:border-0">
-                    <td className="p-4">{reseller.full_name}</td>
-                    <td className="p-4">
+                    <td className="p-2 sm:p-4 text-xs sm:text-sm">{reseller.full_name}</td>
+                    <td className="p-2 sm:p-4">
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${reseller.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}
+                        className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium whitespace-nowrap ${reseller.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}
                       >
                         {reseller.status === 'active' ? 'Activo' : 'Pendiente'}
                       </span>
                     </td>
-                    <td className="p-4 text-muted-foreground">
+                    <td className="p-2 sm:p-4 text-muted-foreground text-xs sm:text-sm hidden sm:table-cell">
                       {new Date(reseller.created_at).toLocaleDateString()}
                     </td>
                   </tr>

@@ -118,11 +118,11 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
   const isEditing = !!client;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50">
-      <div className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
-        <div className="bg-[#1a1d24] rounded-xl border border-border/10 w-[500px] shadow-xl">
-          <div className="flex justify-between items-center p-4 border-b border-border/10">
-            <h2 className="text-lg font-semibold">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="w-full max-w-[500px] max-h-[95vh] overflow-y-auto">
+        <div className="bg-[#1a1d24] rounded-xl border border-border/10 shadow-xl">
+          <div className="flex justify-between items-center p-3 sm:p-4 border-b border-border/10">
+            <h2 className="text-base sm:text-lg font-semibold">
               {isEditing ? "Editar Cliente" : "Nuevo Cliente"}
             </h2>
             <button
@@ -132,8 +132,9 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
               <X className="w-5 h-5" />
             </button>
           </div>
-          
-          <form onSubmit={handleSubmit} className="p-4 space-y-4">
+
+
+          <form onSubmit={handleSubmit} className="p-3 sm:p-4 space-y-3 sm:space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Nombre del Cliente</label>
               <input
@@ -145,8 +146,9 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
                 required
               />
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">WhatsApp</label>
                 <PhoneInput
@@ -182,8 +184,9 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
                 />
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Dispositivos</label>
                 <input
@@ -206,8 +209,9 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
                 />
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Usuario</label>
                 <input
@@ -274,7 +278,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Fecha Inicio</label>
                 <div className="relative">
@@ -303,8 +307,9 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
                 </div>
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Estado</label>
                 <select
@@ -331,17 +336,17 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
             </div>
             
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-border/10">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-border/10">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium border border-border/10 hover:bg-[#a855f7]/20 transition-colors"
+                className="px-4 py-2 sm:px-3 sm:py-1.5 rounded-lg text-sm font-medium border border-border/10 hover:bg-[#a855f7]/20 transition-colors"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white"
+                className="px-4 py-2 sm:px-3 sm:py-1.5 rounded-lg text-sm font-medium bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white"
               >
                 {isEditing ? "Guardar Cambios" : "Agregar Cliente"}
               </button>

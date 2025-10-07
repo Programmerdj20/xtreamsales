@@ -402,77 +402,77 @@ const ResellerClientsPage = () => {
     };
 
     return (
-        <div className="container mx-auto p-4">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">
-                    Gestión de Clientes del Revendedor
+        <div className="container mx-auto p-2 sm:p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 mb-4 sm:mb-6">
+                <h1 className="text-xl sm:text-2xl font-bold">
+                    Mis Clientes
                 </h1>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     <button
-                        onClick={handleExportCSV}
-                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"
-                        title="Exportar mis clientes a CSV"
-                    >
-                        <Download className="w-4 h-4" />
-                        <span>Exportar</span>
-                    </button>
-                    <button
-                        onClick={() => setIsImportModalOpen(true)}
-                        className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"
-                        title="Importar clientes desde CSV"
-                    >
-                        <Upload className="w-4 h-4" />
-                        <span>Importar</span>
-                    </button>
-                    <button
-                        className="bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"
+                        className="bg-[#00A8FF] hover:bg-[#00A8FF]/90 text-white px-2 sm:px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-1 sm:gap-2 flex-1 sm:flex-initial justify-center"
                         onClick={() => {
                             setSelectedClient(null);
                             setIsModalOpen(true);
                         }}
                     >
                         <PlusCircle className="w-4 h-4" />
-                        <span>Nuevo Cliente</span>
+                        <span>Nuevo</span>
+                    </button>
+                    <button
+                        onClick={handleExportCSV}
+                        className="bg-green-600 hover:bg-green-700 text-white px-2 sm:px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-1 sm:gap-2 flex-1 sm:flex-initial justify-center"
+                        title="Exportar mis clientes a CSV"
+                    >
+                        <Download className="w-4 h-4" />
+                        <span className="hidden sm:inline">Exportar</span>
+                    </button>
+                    <button
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="bg-orange-600 hover:bg-orange-700 text-white px-2 sm:px-3 py-1.5 rounded-xl text-sm font-medium flex items-center gap-1 sm:gap-2 flex-1 sm:flex-initial justify-center"
+                        title="Importar clientes desde CSV"
+                    >
+                        <Upload className="w-4 h-4" />
+                        <span className="hidden sm:inline">Importar</span>
                     </button>
                 </div>
             </div>
 
             {/* Tarjetas de resumen */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                 {getSummaryData(clients).map((item, index) => (
                     <div
                         key={index}
-                        className="bg-[#1a1d24] p-4 rounded-xl border border-border/10 flex items-center justify-between"
+                        className="bg-[#1a1d24] p-3 sm:p-4 rounded-xl border border-border/10 flex items-center justify-between"
                     >
                         <div>
-                            <h3 className="text-sm text-muted-foreground">
+                            <h3 className="text-xs sm:text-sm text-muted-foreground">
                                 {item.title}
                             </h3>
                             <p
-                                className={`text-2xl font-semibold mt-1 ${item.color}`}
+                                className={`text-xl sm:text-2xl font-semibold mt-1 ${item.color}`}
                             >
                                 {item.value}
                             </p>
                         </div>
-                        <item.Icon className={`w-5 h-5 ${item.color}`} />
+                        <item.Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${item.color}`} />
                     </div>
                 ))}
             </div>
 
             {/* Barra de búsqueda y filtros */}
-            <div className="mb-6">
-                <div className="flex flex-col sm:flex-row gap-4 mb-4">
+            <div className="mb-4 sm:mb-6">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-3 sm:mb-4">
                     <div className="relative flex-1">
                         <input
                             type="text"
                             placeholder="Buscar cliente..."
-                            className="w-full px-4 py-2 bg-background/50 border border-border/10 rounded-lg text-sm"
+                            className="w-full px-3 sm:px-4 py-2 bg-background/50 border border-border/10 rounded-lg text-sm"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <select
-                        className="px-4 py-2 bg-background/50 border border-border/10 rounded-lg text-sm"
+                        className="px-3 sm:px-4 py-2 bg-background/50 border border-border/10 rounded-lg text-sm"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
                     >
