@@ -59,7 +59,8 @@ const ResellerTemplatesPage: React.FC = () => {
             if (editingTemplate.id) {
                 await templateService.update(
                     editingTemplate.id,
-                    editingTemplate
+                    editingTemplate,
+                    user.role
                 );
                 toast.success("Plantilla actualizada exitosamente");
             } else {
@@ -90,7 +91,7 @@ const ResellerTemplatesPage: React.FC = () => {
             return;
 
         try {
-            await templateService.delete(id, user.id);
+            await templateService.delete(id, user.id, user.role);
             toast.success("Plantilla eliminada exitosamente");
             fetchTemplates();
         } catch (error) {
@@ -248,23 +249,25 @@ const ResellerTemplatesPage: React.FC = () => {
                                 className="bg-[#1a1d24] rounded-xl border border-border/10 p-6 min-h-[200px] overflow-hidden flex flex-col"
                             >
                                 <div className="flex justify-end gap-2 mb-4">
-                                    <button
-                                        onClick={() =>
-                                            setEditingTemplate(template)
-                                        }
-                                        className="p-1.5 rounded-md hover:bg-[#00A8FF]/20 text-[#00A8FF] transition-colors"
-                                    >
-                                        <Pencil className="w-4 h-4" />
-                                    </button>
                                     {!isSystemTemplate(template) && (
-                                        <button
-                                            onClick={() =>
-                                                handleDelete(template.id)
-                                            }
-                                            className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={() =>
+                                                    setEditingTemplate(template)
+                                                }
+                                                className="p-1.5 rounded-md hover:bg-[#00A8FF]/20 text-[#00A8FF] transition-colors"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() =>
+                                                    handleDelete(template.id)
+                                                }
+                                                className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </>
                                     )}
                                 </div>
 

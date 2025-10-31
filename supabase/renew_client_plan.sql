@@ -1,10 +1,10 @@
--- Función RPC simple para renovar el plan de un revendedor
--- Esta función ignora las políticas RLS y actualiza la fecha de fin del plan
-DROP FUNCTION IF EXISTS renew_plan(UUID, INTEGER);
-DROP FUNCTION IF EXISTS renew_plan(UUID, INTEGER, TEXT);
+-- Función RPC para renovar el plan de un cliente
+-- Esta función suma los meses del nuevo plan a la fecha de vencimiento actual
+DROP FUNCTION IF EXISTS renew_client_plan(UUID, INTEGER);
+DROP FUNCTION IF EXISTS renew_client_plan(UUID, INTEGER, TEXT);
 
-CREATE OR REPLACE FUNCTION renew_plan(
-  reseller_id UUID,
+CREATE OR REPLACE FUNCTION renew_client_plan(
+  client_id UUID,
   months INTEGER,
   plan_name TEXT
 )
@@ -17,13 +17,13 @@ DECLARE
   current_end_date TIMESTAMPTZ;
   new_end_date TIMESTAMPTZ;
 BEGIN
-  -- Verificar si existe el revendedor
-  IF NOT EXISTS (SELECT 1 FROM resellers WHERE id = reseller_id) THEN
+  -- Verificar si existe el cliente
+  IF NOT EXISTS (SELECT 1 FROM clients WHERE id = client_id) THEN
     RETURN FALSE;
   END IF;
 
   -- Obtener la fecha de fin actual
-  SELECT plan_end_date INTO current_end_date FROM resellers WHERE id = reseller_id;
+  SELECT fecha_fin INTO current_end_date FROM clients WHERE id = client_id;
 
   -- Calcular la nueva fecha de fin
   -- Si la fecha actual ya pasó, usar la fecha actual como base
@@ -33,17 +33,17 @@ BEGIN
     new_end_date := current_end_date + (months || ' months')::INTERVAL;
   END IF;
 
-  -- Actualizar la fecha de fin, el status y el tipo de plan
-  UPDATE resellers
-  SET plan_end_date = new_end_date,
+  -- Actualizar la fecha de fin, el status y el nombre del plan
+  UPDATE clients
+  SET fecha_fin = new_end_date,
       status = 'active',
-      plan_type = plan_name
-  WHERE id = reseller_id;
+      plan = plan_name
+  WHERE id = client_id;
 
   RETURN TRUE;
 EXCEPTION
   WHEN OTHERS THEN
-    RAISE NOTICE 'Error al renovar plan: %', SQLERRM;
+    RAISE NOTICE 'Error al renovar plan de cliente: %', SQLERRM;
     RETURN FALSE;
 END;
 $$;

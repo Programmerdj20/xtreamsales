@@ -101,30 +101,32 @@ export const resellerActionsService = {
     try {
       // Convertir plan a meses si es string
       const months = typeof planOrMonths === 'string' ? await planToMonthsAsync(planOrMonths) : planOrMonths;
-      
-      console.log('Renovando plan de revendedor con RPC:', { id, plan: planOrMonths, months });
-      
+      const planName = typeof planOrMonths === 'string' ? planOrMonths : `${planOrMonths} Meses`;
+
+      console.log('Renovando plan de revendedor con RPC:', { id, plan: planName, months });
+
       // Usar la función RPC renew_plan para renovar el plan (función simple)
       const { data: success, error: rpcError } = await supabase
         .rpc('renew_plan', {
           reseller_id: id,
-          months: months
+          months: months,
+          plan_name: planName
         });
-      
+
       if (rpcError) {
         console.error('Error al renovar plan con RPC:', rpcError);
         throw rpcError;
       }
-      
+
       if (!success) {
         throw new Error('No se pudo renovar el plan');
       }
-      
+
       console.log('Plan renovado correctamente');
-      
+
       // Obtener los datos actualizados del revendedor
       const reseller = await resellerService.getById(id);
-      
+
       // Sincronizar automáticamente el estado entre resellers y profiles
       // Al renovar, el reseller debe quedar activo automáticamente
       if (reseller && reseller.plan_end_date) {
@@ -136,7 +138,7 @@ export const resellerActionsService = {
           // No fallar la renovación por error de sincronización
         }
       }
-      
+
       return reseller;
     } catch (error) {
       console.error('Error en el proceso de renovación de plan:', error);

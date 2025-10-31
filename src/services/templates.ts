@@ -111,7 +111,7 @@ export const templateService = {
         }
     },
 
-    async update(id: string, updates: Partial<Template>) {
+    async update(id: string, updates: Partial<Template>, userRole?: string) {
         try {
             // Obtener la plantilla original
             const { data: template, error: fetchError } = await supabase
@@ -121,6 +121,16 @@ export const templateService = {
                 .single();
             if (fetchError) throw fetchError;
             if (!template) throw new Error("Plantilla no encontrada");
+
+            // Verificar si es una plantilla del sistema (owner_id es null)
+            const isSystemTemplate = template.owner_id === null;
+
+            // Solo los administradores pueden editar plantillas del sistema
+            if (isSystemTemplate && userRole !== "admin") {
+                throw new Error(
+                    "No tienes permisos para editar plantillas del sistema. Solo puedes editar tus plantillas personales."
+                );
+            }
 
             // Protección: no permitir cambiar el nombre de plantillas prediseñadas
             if (
@@ -165,7 +175,7 @@ export const templateService = {
         }
     },
 
-    async delete(id: string, userId: string) {
+    async delete(id: string, userId: string, userRole?: string) {
         try {
             const { data: template, error: fetchError } = await supabase
                 .from("templates")
@@ -176,13 +186,18 @@ export const templateService = {
             if (fetchError) throw fetchError;
             if (!template) throw new Error("Plantilla no encontrada");
 
-            if (template.owner_id === null) {
+            // Verificar si es una plantilla del sistema
+            const isSystemTemplate = template.owner_id === null;
+
+            // Solo los administradores pueden eliminar plantillas del sistema
+            if (isSystemTemplate && userRole !== "admin") {
                 throw new Error(
                     "No se pueden eliminar las plantillas del sistema."
                 );
             }
 
-            if (template.owner_id !== userId) {
+            // Los resellers solo pueden eliminar sus propias plantillas
+            if (!isSystemTemplate && template.owner_id !== userId && userRole !== "admin") {
                 throw new Error(
                     "No tienes permiso para eliminar esta plantilla."
                 );

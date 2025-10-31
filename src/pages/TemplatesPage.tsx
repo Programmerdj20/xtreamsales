@@ -59,7 +59,7 @@ export default function TemplatesPage() {
                     name: editingTemplate.name,
                     content: editingTemplate.content,
                     category: editingTemplate.category,
-                });
+                }, user.role);
                 toast.success("Plantilla actualizada exitosamente");
             } else {
                 // Crear nueva plantilla
@@ -87,7 +87,7 @@ export default function TemplatesPage() {
             return;
 
         try {
-            await templateService.delete(id, user.id);
+            await templateService.delete(id, user.id, user.role);
             toast.success("Plantilla eliminada exitosamente");
             fetchTemplates();
         } catch (error) {

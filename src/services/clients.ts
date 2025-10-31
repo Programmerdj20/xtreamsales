@@ -223,4 +223,36 @@ export const clientService = {
             throw error;
         }
     },
+
+    async renew(id: string, planOrMonths: string | number): Promise<void> {
+        try {
+            // Convertir plan a meses si es string
+            const months = typeof planOrMonths === 'string' ? planToMonths(planOrMonths) : planOrMonths;
+            const planName = typeof planOrMonths === 'string' ? planOrMonths : `${planOrMonths} Meses`;
+
+            console.log('Renovando plan de cliente con RPC:', { id, plan: planName, months });
+
+            // Usar la función RPC renew_client_plan para renovar el plan
+            const { data: success, error: rpcError } = await supabase
+                .rpc('renew_client_plan', {
+                    client_id: id,
+                    months: months,
+                    plan_name: planName
+                });
+
+            if (rpcError) {
+                console.error('Error al renovar plan con RPC:', rpcError);
+                throw rpcError;
+            }
+
+            if (!success) {
+                throw new Error('No se pudo renovar el plan del cliente');
+            }
+
+            console.log('Plan de cliente renovado correctamente');
+        } catch (error) {
+            console.error('Error en el proceso de renovación de plan del cliente:', error);
+            throw error;
+        }
+    },
 };

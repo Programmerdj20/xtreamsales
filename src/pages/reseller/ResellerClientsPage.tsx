@@ -24,6 +24,7 @@ import {
 import { SelectTemplateModal } from "../../components/resellers/SelectTemplateModal";
 import { Template } from "../../types/template.types";
 import { supabase } from "../../lib/supabase";
+import { formatPhoneForWhatsApp } from "../../lib/phoneUtils";
 import { useAuth } from "../../contexts/AuthContext"; // Para obtener el usuario actual
 import { ImportCSVModal } from "../../components/modals/ImportCSVModal";
 import { exportToCSV } from "../../lib/csvUtils";
@@ -274,11 +275,8 @@ const ResellerClientsPage = () => {
         if (!clientToRenew) return;
 
         try {
-            // Actualizar el cliente con el nuevo plan
-            // El clientService.update() calculará automáticamente la nueva fecha_fin
-            await clientService.update(clientToRenew.id, {
-                plan: plan, // Usamos el campo plan para almacenar el plan de suscripción
-            });
+            // Renovar el plan del cliente usando la función específica que suma fechas
+            await clientService.renew(clientToRenew.id, plan);
 
             toast.success(
                 `Plan renovado exitosamente a ${plan}`
@@ -317,33 +315,12 @@ const ResellerClientsPage = () => {
                 contraseña: clientToSend.contraseña || "",
             });
 
-            // Asegurarse de que el número de teléfono esté en el formato correcto
-            let phone = clientToSend.whatsapp || "";
+            // Formatear el número de teléfono para WhatsApp usando libphonenumber-js
+            const phone = formatPhoneForWhatsApp(clientToSend.whatsapp || "");
 
-            // Verificar si el número ya tiene código de país
-            if (phone.startsWith("+")) {
-                // Si ya tiene el +, simplemente eliminarlo y mantener el resto
-                phone = phone.substring(1).replace(/\D/g, "");
-            } else {
-                // Si no tiene +, eliminar caracteres no numéricos
-                phone = phone.replace(/\D/g, "");
-
-                // Verificar si el número ya comienza con un código de país
-                // Los códigos comunes en Latinoamérica son 52 (México), 57 (Colombia), 54 (Argentina), etc.
-                // Si no comienza con un código de país reconocible, agregar 52 (México)
-                if (
-                    !phone.startsWith("52") &&
-                    !phone.startsWith("57") &&
-                    !phone.startsWith("54") &&
-                    !phone.startsWith("55") &&
-                    !phone.startsWith("56") &&
-                    !phone.startsWith("58") &&
-                    !phone.startsWith("51") &&
-                    !phone.startsWith("50") &&
-                    phone.length > 0
-                ) {
-                    phone = "52" + phone;
-                }
+            if (!phone) {
+                toast.error("Número de teléfono inválido");
+                return;
             }
 
             // Abrir WhatsApp con el mensaje
