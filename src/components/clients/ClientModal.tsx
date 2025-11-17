@@ -3,7 +3,7 @@ import { ClientFormData, ClientData } from "../../services/clients";
 import { X, Calendar } from 'lucide-react';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
-import { formatDateForInput } from '../../lib/dateUtils';
+import { formatDateForInput, calculatePlanEndDateAsync } from '../../lib/dateUtils';
 import { PlatformSelector } from '../ui/PlatformSelector';
 import { PriceInput } from '../ui/PriceInput';
 import { PlanSelector } from '../ui/PlanSelector';
@@ -243,23 +243,10 @@ export const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSub
                 value={formData.plan}
                 onChange={async (newPlan) => {
                   try {
-                    // Obtener los meses del plan desde Supabase
-                    const months = await planService.getMonthsByName(newPlan);
-
-                    // Calcular la nueva fecha de fin
+                    // Usar la misma función que el modal de resellers para calcular la fecha
                     const startDate = formData.fecha_inicio ? new Date(formData.fecha_inicio) : new Date();
-                    const endDate = new Date(startDate);
+                    const newEndDate = formatDateForInput(await calculatePlanEndDateAsync(newPlan, startDate));
 
-                    if (months === 0) {
-                      // Demo 24 horas
-                      endDate.setDate(endDate.getDate() + 1);
-                    } else {
-                      endDate.setMonth(endDate.getMonth() + months);
-                    }
-
-                    const newEndDate = formatDateForInput(endDate);
-
-                    // Usar callback para asegurar actualización atómica
                     setFormData(prev => ({
                       ...prev,
                       plan: newPlan,

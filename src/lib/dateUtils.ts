@@ -14,7 +14,8 @@ const BASIC_PLANS_MAP: Record<string, number> = {
   '6 Meses': 6,
   '7 Meses': 7,
   '12 Meses': 12,
-  '14 Meses': 14
+  '14 Meses': 14,
+  'Ilimitado': 999999 // Plan especial con fecha fija
 };
 
 // Función síncrona para planes básicos, asíncrona como fallback
@@ -40,12 +41,17 @@ export const getPlanMonths = async (plan: string): Promise<number> => {
 
 // Función síncrona para compatibilidad hacia atrás
 export const calculatePlanEndDate = (plan: string, startDate?: Date): Date => {
+  // Plan especial: Ilimitado tiene fecha fija
+  if (plan === 'Ilimitado') {
+    return new Date('2030-12-31');
+  }
+
   const today = startDate ? new Date(startDate) : new Date();
   const endDate = new Date(today);
-  
+
   // Usar mapeo hardcoded para cálculo rápido
   const months = BASIC_PLANS_MAP[plan] || 1;
-  
+
   if (months === 0) {
     // Plan Demo (24 horas)
     endDate.setDate(endDate.getDate() + 1);
@@ -53,17 +59,22 @@ export const calculatePlanEndDate = (plan: string, startDate?: Date): Date => {
     // Planes de meses
     endDate.setMonth(endDate.getMonth() + months);
   }
-  
+
   return endDate;
 };
 
 // Versión asíncrona para planes dinámicos
 export const calculatePlanEndDateAsync = async (plan: string, startDate?: Date): Promise<Date> => {
+  // Plan especial: Ilimitado tiene fecha fija
+  if (plan === 'Ilimitado') {
+    return new Date('2030-12-31');
+  }
+
   const today = startDate ? new Date(startDate) : new Date();
   const endDate = new Date(today);
-  
+
   const months = await getPlanMonths(plan);
-  
+
   if (months === 0) {
     // Plan Demo (24 horas)
     endDate.setDate(endDate.getDate() + 1);
@@ -71,7 +82,7 @@ export const calculatePlanEndDateAsync = async (plan: string, startDate?: Date):
     // Planes de meses
     endDate.setMonth(endDate.getMonth() + months);
   }
-  
+
   return endDate;
 };
 
